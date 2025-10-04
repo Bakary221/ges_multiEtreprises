@@ -1,0 +1,49 @@
+{
+  "auth.login.success": "Connexion réussie",
+  "auth.login.failed": "Échec de connexion",
+  "auth.register.success": "Inscription réussie",
+  "auth.logout.success": "Déconnexion réussie",
+  "auth.token.expired": "Token expiré",
+  "auth.invalid.credentials": "Identifiants invalides",
+
+  "employee.created": "Employé créé avec succès",
+  "employee.updated": "Employé mis à jour",
+  "employee.deleted": "Employé supprimé",
+  "employee.not_found": "Employé non trouvé",
+  "employee.archived": "Employé archivé",
+
+  "payment.completed": "Paiement effectué avec succès",
+  "payment.pending": "Paiement en attente",
+  "payment.failed": "Échec du paiement",
+  "payment.cancelled": "Paiement annulé",
+
+  "timesheet.validated": "Feuille de temps validée",
+  "timesheet.submitted": "Feuille de temps soumise",
+  "timesheet.rejected": "Feuille de temps rejetée",
+
+  "leave.approved": "Congé approuvé",
+  "leave.rejected": "Congé rejeté",
+  "leave.pending": "Congé en attente",
+
+  "contract.created": "Contrat créé",
+  "contract.updated": "Contrat mis à jour",
+
+  "department.created": "Département créé",
+  "department.updated": "Département mis à jour",
+
+  "webhook.registered": "Webhook enregistré",
+  "webhook.deleted": "Webhook supprimé",
+
+  "error.validation": "Erreur de validation",
+  "error.unauthorized": "Non autorisé",
+  "error.forbidden": "Accès interdit",
+  "error.not_found": "Ressource non trouvée",
+  "error.internal": "Erreur interne du serveur",
+  "error.duplicate": "Ressource déjà existante",
+  "error.network": "Erreur réseau",
+
+  "success.operation": "Opération réussie",
+  "success.created": "Créé avec succès",
+  "success.updated": "Mis à jour avec succès",
+  "success.deleted": "Supprimé avec succès"
+}

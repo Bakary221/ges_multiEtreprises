@@ -1,0 +1,49 @@
+{
+  "auth.login.success": "Login successful",
+  "auth.login.failed": "Login failed",
+  "auth.register.success": "Registration successful",
+  "auth.logout.success": "Logout successful",
+  "auth.token.expired": "Token expired",
+  "auth.invalid.credentials": "Invalid credentials",
+
+  "employee.created": "Employee created successfully",
+  "employee.updated": "Employee updated",
+  "employee.deleted": "Employee deleted",
+  "employee.not_found": "Employee not found",
+  "employee.archived": "Employee archived",
+
+  "payment.completed": "Payment completed successfully",
+  "payment.pending": "Payment pending",
+  "payment.failed": "Payment failed",
+  "payment.cancelled": "Payment cancelled",
+
+  "timesheet.validated": "Timesheet validated",
+  "timesheet.submitted": "Timesheet submitted",
+  "timesheet.rejected": "Timesheet rejected",
+
+  "leave.approved": "Leave approved",
+  "leave.rejected": "Leave rejected",
+  "leave.pending": "Leave pending",
+
+  "contract.created": "Contract created",
+  "contract.updated": "Contract updated",
+
+  "department.created": "Department created",
+  "department.updated": "Department updated",
+
+  "webhook.registered": "Webhook registered",
+  "webhook.deleted": "Webhook deleted",
+
+  "error.validation": "Validation error",
+  "error.unauthorized": "Unauthorized",
+  "error.forbidden": "Forbidden",
+  "error.not_found": "Resource not found",
+  "error.internal": "Internal server error",
+  "error.duplicate": "Resource already exists",
+  "error.network": "Network error",
+
+  "success.operation": "Operation successful",
+  "success.created": "Created successfully",
+  "success.updated": "Updated successfully",
+  "success.deleted": "Deleted successfully"
+}

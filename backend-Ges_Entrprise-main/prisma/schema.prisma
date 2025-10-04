@@ -1,0 +1,254 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      Role
+  companyId Int?
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employee  Employee?
+  company   Company? @relation(fields: [companyId], references: [id])
+  logs      Log[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Company {
+  id             Int      @id @default(autoincrement())
+  name           String
+  settings       Json?
+  currency       String   @default("EUR")
+  logo           String?
+  primaryColor   String?
+  secondaryColor String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users       User[]
+  employees   Employee[]
+  departments Department[]
+  payruns     Payrun[]
+  integrations Integration[]
+  logs        Log[]
+
+  @@map("companies")
+}
+
+model Employee {
+  id           Int       @id @default(autoincrement())
+  userId       Int?      @unique
+  name         String
+  position     String
+  salary       Float
+  departmentId Int?
+  contractId   Int?
+  companyId    Int
+  archived     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User?     @relation(fields: [userId], references: [id])
+  company      Company   @relation(fields: [companyId], references: [id])
+  department   Department? @relation(fields: [departmentId], references: [id])
+  contract     Contract?
+  attendances  Attendance[]
+  timesheets   Timesheet[]
+  payslips     Payslip[]
+  leaveRequests LeaveRequest[]
+
+  @@map("employees")
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String
+  companyId Int
+  createdAt DateTime @default(now())
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  employees Employee[]
+
+  @@map("departments")
+}
+
+model Contract {
+  id        Int      @id @default(autoincrement())
+  type      String
+  startDate DateTime
+  endDate   DateTime?
+  salary    Float
+  employeeId Int     @unique
+  createdAt DateTime @default(now())
+
+  employee  Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("contracts")
+}
+
+model Attendance {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  timestamp  DateTime
+  type       AttendanceType
+  createdAt  DateTime @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("attendances")
+}
+
+model Timesheet {
+  id          Int      @id @default(autoincrement())
+  employeeId  Int
+  month       String
+  hoursWorked Float
+  validated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  employee    Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("timesheets")
+}
+
+model Payrun {
+  id         Int      @id @default(autoincrement())
+  companyId  Int
+  month      String
+  totalAmount Float
+  createdAt  DateTime @default(now())
+
+  company    Company  @relation(fields: [companyId], references: [id])
+  payslips   Payslip[]
+
+  @@map("payruns")
+}
+
+model Payslip {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  payrunId   Int
+  netSalary  Float
+  pdfUrl     String?
+  createdAt  DateTime @default(now())
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  payrun     Payrun   @relation(fields: [payrunId], references: [id])
+  payments   Payment[]
+
+  @@map("payslips")
+}
+
+model Payment {
+  id        Int         @id @default(autoincrement())
+  payslipId Int
+  status    PaymentStatus @default(PENDING)
+  method    String
+  date      DateTime?
+  createdAt DateTime    @default(now())
+
+  payslip   Payslip     @relation(fields: [payslipId], references: [id])
+
+  @@map("payments")
+}
+
+model LeaveRequest {
+  id         Int           @id @default(autoincrement())
+  employeeId Int
+  startDate  DateTime
+  endDate    DateTime
+  status     LeaveStatus   @default(PENDING)
+  createdAt  DateTime      @default(now())
+
+  employee   Employee      @relation(fields: [employeeId], references: [id])
+
+  @@map("leave_requests")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  type      String
+  content   String
+  status    NotificationStatus @default(UNREAD)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+model Integration {
+  id        Int      @id @default(autoincrement())
+  type      String
+  config    Json
+  companyId Int
+  createdAt DateTime @default(now())
+
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  @@map("integrations")
+}
+
+model Log {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  companyId Int?
+  action    String
+  entity    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  @@map("logs")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  CAISSIER
+  EMPLOYEE
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum AttendanceType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationStatus {
+  READ
+  UNREAD
+}
