@@ -39,4 +39,9 @@ export const companyService = {
     const response = await api.get('/dashboard/stats');
     return response.data;
   },
+
+  createCompanyWithAdmin: async (companyData) => {
+    const response = await api.post('/companies/with-admin', companyData);
+    return response.data;
+  },
 };

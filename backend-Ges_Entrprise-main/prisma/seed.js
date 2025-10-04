@@ -31,7 +31,7 @@ async function main() {
       data: {
         name: 'TechCorp Senegal',
         currency: 'XOF',
-        logo: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop&crop=center',
+        logo: null,
         primaryColor: '#2563EB',
         secondaryColor: '#1E40AF',
         settings: {
@@ -45,7 +45,7 @@ async function main() {
       data: {
         name: 'FinancePlus Mali',
         currency: 'XOF',
-        logo: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=100&h=100&fit=crop&crop=center',
+        logo: null,
         primaryColor: '#059669',
         secondaryColor: '#047857',
         settings: {
@@ -59,7 +59,7 @@ async function main() {
       data: {
         name: 'Logistics Côte d\'Ivoire',
         currency: 'XOF',
-        logo: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=100&h=100&fit=crop&crop=center',
+        logo: null,
         primaryColor: '#DC2626',
         secondaryColor: '#B91C1C',
         settings: {

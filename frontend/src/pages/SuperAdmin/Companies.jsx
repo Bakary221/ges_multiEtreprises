@@ -2,7 +2,485 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { companyService } from '../../services/companyService';
 import { useAuth } from '../../utils/AuthContext';
-import { Building2, Plus, Edit, Trash2, Users, Eye, LogIn, Search, Filter, ChevronLeft, ChevronRight, List } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Users, Eye, LogIn, Search, Filter, ChevronLeft, ChevronRight, List, AlertCircle, User, Mail, Lock, Upload, Check, Eye as EyeIcon, EyeOff, Save, ArrowLeft } from 'lucide-react';
+
+// CompanyForm Component
+const CompanyForm = ({ editingCompany, onSuccess, onCancel }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    currency: 'XOF',
+    logo: '',
+    primaryColor: '#2563EB',
+    secondaryColor: '#1E40AF',
+    adminName: '',
+    adminEmail: '',
+    adminPassword: '',
+    adminPosition: 'Administrateur'
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [logoPreview, setLogoPreview] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (editingCompany) {
+      setFormData({
+        name: editingCompany.name || '',
+        currency: editingCompany.currency || 'XOF',
+        logo: editingCompany.logo || '',
+        primaryColor: editingCompany.primaryColor || '#2563EB',
+        secondaryColor: editingCompany.secondaryColor || '#1E40AF',
+        adminName: editingCompany.adminName || '',
+        adminEmail: '',
+        adminPassword: '',
+        adminPosition: 'Administrateur'
+      });
+      if (editingCompany.logo) {
+        setLogoPreview(editingCompany.logo);
+      }
+    }
+  }, [editingCompany]);
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Le nom de l\'entreprise est requis';
+    }
+
+    if (!formData.currency) {
+      newErrors.currency = 'La devise est requise';
+    }
+
+    if (!editingCompany) {
+      if (!formData.adminName.trim()) {
+        newErrors.adminName = 'Le nom de l\'administrateur est requis';
+      }
+
+      if (!formData.adminEmail.trim()) {
+        newErrors.adminEmail = 'L\'email de l\'administrateur est requis';
+      } else if (!/\S+@\S+\.\S+/.test(formData.adminEmail)) {
+        newErrors.adminEmail = 'L\'email n\'est pas valide';
+      }
+
+      if (!formData.adminPassword) {
+        newErrors.adminPassword = 'Le mot de passe est requis';
+      } else if (formData.adminPassword.length < 6) {
+        newErrors.adminPassword = 'Le mot de passe doit contenir au moins 6 caractères';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const uploadLogo = async (file) => {
+    const formDataUpload = new FormData();
+    formDataUpload.append('file', file);
+
+    // Utiliser axios avec la configuration existante
+    const response = await fetch('http://localhost:3000/files/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+      },
+      body: formDataUpload
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      return result.data.url;
+    } else {
+      throw new Error(result.message || 'Erreur lors de l\'upload');
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        setErrors({ logo: 'La taille du fichier ne doit pas dépasser 2MB' });
+        return;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        setErrors({ logo: 'Seules les images sont autorisées' });
+        return;
+      }
+
+      setUploadingLogo(true);
+      setErrors(prev => ({ ...prev, logo: '' }));
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+
+      try {
+        const logoUrl = await uploadLogo(file);
+        setFormData(prev => ({ ...prev, logo: logoUrl }));
+      } catch (error) {
+        console.error('Upload error:', error);
+        let errorMessage = 'Erreur lors de l\'upload de l\'image';
+        if (error.response?.status === 413) {
+          errorMessage = 'Le fichier est trop volumineux (max 2MB)';
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        }
+        setErrors({ logo: errorMessage });
+        setLogoPreview('');
+      } finally {
+        setUploadingLogo(false);
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      if (editingCompany) {
+        const updateData = {
+          name: formData.name,
+          currency: formData.currency,
+          logo: formData.logo,
+          primaryColor: formData.primaryColor,
+          secondaryColor: formData.secondaryColor
+        };
+        await companyService.updateCompany(editingCompany.id, updateData);
+      } else {
+        await companyService.createCompanyWithAdmin(formData);
+      }
+
+      setSuccess(true);
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error saving company:', error);
+
+      if (error.response?.data?.message) {
+        if (error.response.data.message.includes('email')) {
+          setErrors({ adminEmail: error.response.data.message });
+        } else {
+          setErrors({ general: error.response.data.message });
+        }
+      } else {
+        setErrors({ general: 'Une erreur inattendue s\'est produite' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Check className="h-10 w-10 text-green-600" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-4">
+          {editingCompany ? 'Entreprise modifiée avec succès !' : 'Entreprise créée avec succès !'}
+        </h3>
+        <p className="text-gray-600">
+          Fermeture automatique dans quelques secondes...
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {errors.general && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
+            <span className="text-red-700 font-medium">{errors.general}</span>
+          </div>
+        </div>
+      )}
+
+      <div className={`grid grid-cols-1 ${editingCompany ? 'lg:grid-cols-2' : 'lg:grid-cols-2'} gap-6`}>
+        <div className="bg-gray-50 rounded-2xl p-6">
+          <div className="flex items-center mb-4">
+            <Building2 className="h-5 w-5 text-indigo-600 mr-3" />
+            <h3 className="text-lg font-bold text-gray-900">Informations de l'Entreprise</h3>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nom de l'Entreprise *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                  errors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                }`}
+                placeholder="Ex: TechCorp Senegal"
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.name}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Devise *
+              </label>
+              <select
+                value={formData.currency}
+                onChange={(e) => handleInputChange('currency', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="XOF">Franc CFA (XOF)</option>
+                <option value="EUR">Euro (€)</option>
+                <option value="USD">Dollar US ($)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo de l'Entreprise
+              </label>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-16 h-16 border-2 border-dashed rounded-xl flex items-center justify-center overflow-hidden relative">
+                    {logoPreview ? (
+                      <img
+                        src={logoPreview}
+                        alt="Logo preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }}
+                      />
+                    ) : null}
+                    <Upload className="h-6 w-6 text-gray-400" style={{ display: logoPreview ? 'none' : 'block' }} />
+                    {uploadingLogo && (
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      disabled={uploadingLogo}
+                      className="hidden"
+                      id="logo-upload-modal"
+                    />
+                    <label
+                      htmlFor="logo-upload-modal"
+                      className={`inline-flex items-center px-3 py-2 border rounded-lg text-sm font-medium cursor-pointer ${
+                        uploadingLogo
+                          ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                          : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadingLogo ? 'Upload...' : 'Choisir'}
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG jusqu'à 2MB</p>
+                  </div>
+                </div>
+                {errors.logo && (
+                  <p className="text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.logo}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Couleur Primaire
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="color"
+                    value={formData.primaryColor}
+                    onChange={(e) => handleInputChange('primaryColor', e.target.value)}
+                    className="w-10 h-8 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-600">{formData.primaryColor}</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Couleur Secondaire
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="color"
+                    value={formData.secondaryColor}
+                    onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
+                    className="w-10 h-8 border border-gray-300 rounded cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-600">{formData.secondaryColor}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-green-50 rounded-2xl p-6">
+          <div className="flex items-center mb-4">
+            <User className="h-5 w-5 text-green-600 mr-3" />
+            <h3 className="text-lg font-bold text-gray-900">Administrateur</h3>
+          </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom Complet *
+                </label>
+                <input
+                  type="text"
+                  value={formData.adminName}
+                  onChange={(e) => handleInputChange('adminName', e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                    errors.adminName ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  }`}
+                  placeholder="Ex: Jean Dupont"
+                />
+                {errors.adminName && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.adminName}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Poste
+                </label>
+                <input
+                  type="text"
+                  value={formData.adminPosition}
+                  onChange={(e) => handleInputChange('adminPosition', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Ex: Directeur Général"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={formData.adminEmail}
+                    onChange={(e) => handleInputChange('adminEmail', e.target.value)}
+                    className={`w-full pl-11 pr-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                      errors.adminEmail ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    placeholder="admin@entreprise.com"
+                  />
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+                {errors.adminEmail && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.adminEmail}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mot de Passe *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.adminPassword}
+                    onChange={(e) => handleInputChange('adminPassword', e.target.value)}
+                    className={`w-full pl-4 pr-11 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 transition-all ${
+                      errors.adminPassword ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.adminPassword && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    {errors.adminPassword}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-medium"
+        >
+          Annuler
+        </button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+              {editingCompany ? 'Modification...' : 'Création...'}
+            </>
+          ) : (
+            <>
+              <Save className="h-5 w-5 mr-3" />
+              {editingCompany ? 'Modifier l\'Entreprise' : 'Créer l\'Entreprise'}
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+};
 
 const Companies = () => {
   const { user, isAuthenticated, userRole, loading: authLoading } = useAuth();
@@ -11,15 +489,11 @@ const Companies = () => {
   const [companies, setCompanies] = useState([]);
   const [filteredCompanies, setFilteredCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    currency: 'EUR',
-    logo: '',
-    primaryColor: '#6B7280',
-    secondaryColor: '#374151',
-  });
   const [searchTerm, setSearchTerm] = useState('');
   const [currencyFilter, setCurrencyFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -65,39 +539,26 @@ const Companies = () => {
     }
   };
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const handleDelete = async () => {
+    if (!companyToDelete) return;
+
     try {
-      await companyService.createCompany(formData);
-      setShowCreateModal(false);
-      setFormData({ name: '', currency: 'EUR', logo: '', primaryColor: '#6B7280', secondaryColor: '#374151' });
+      setDeleteError('');
+      await companyService.deleteCompany(companyToDelete.id);
+      setShowDeleteModal(false);
+      setCompanyToDelete(null);
       loadCompanies();
     } catch (error) {
-      console.error('Error creating company:', error);
+      console.error('Error deleting company:', error);
+      const errorMessage = error.response?.data?.message || 'Une erreur inattendue s\'est produite lors de la suppression.';
+      setDeleteError(errorMessage);
     }
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    try {
-      await companyService.updateCompany(editingCompany.id, formData);
-      setEditingCompany(null);
-      setFormData({ name: '', currency: 'EUR' });
-      loadCompanies();
-    } catch (error) {
-      console.error('Error updating company:', error);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette entreprise ?')) {
-      try {
-        await companyService.deleteCompany(id);
-        loadCompanies();
-      } catch (error) {
-        console.error('Error deleting company:', error);
-      }
-    }
+  const openDeleteModal = (company) => {
+    setCompanyToDelete(company);
+    setDeleteError('');
+    setShowDeleteModal(true);
   };
 
   const handleImpersonate = async (companyId) => {
@@ -110,15 +571,19 @@ const Companies = () => {
     }
   };
 
+  const openCreateModal = () => {
+    setEditingCompany(null);
+    setShowCreateModal(true);
+  };
+
   const openEditModal = (company) => {
     setEditingCompany(company);
-    setFormData({
-      name: company.name,
-      currency: company.currency || 'EUR',
-      logo: company.logo || '',
-      primaryColor: company.primaryColor || '#6B7280',
-      secondaryColor: company.secondaryColor || '#374151',
-    });
+    setShowCreateModal(true);
+  };
+
+  const closeModal = () => {
+    setShowCreateModal(false);
+    setEditingCompany(null);
   };
 
   if (authLoading || loading) {
@@ -155,7 +620,7 @@ const Companies = () => {
               <p className="text-gray-600 text-lg">Gérez toutes les entreprises de votre plateforme</p>
             </div>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={openCreateModal}
               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <Plus className="h-5 w-5 mr-2" />
@@ -219,10 +684,17 @@ const Companies = () => {
                     <div className="relative">
                       <div className="p-4 rounded-2xl shadow-xl" style={{ backgroundColor: company.primaryColor || '#6B7280' }}>
                         {company.logo ? (
-                          <img src={company.logo} alt={company.name} className="h-10 w-10 object-contain" />
-                        ) : (
-                          <Building2 className="h-10 w-10 text-white" />
-                        )}
+                          <img
+                            src={company.logo}
+                            alt={company.name}
+                            className="h-10 w-10 object-contain"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'block';
+                            }}
+                          />
+                        ) : null}
+                        <Building2 className="h-10 w-10 text-white" style={{ display: company.logo ? 'none' : 'block' }} />
                       </div>
                       {/* Color indicators */}
                       <div className="absolute -bottom-1 -right-1 flex space-x-1">
@@ -270,7 +742,7 @@ const Companies = () => {
                     <Edit className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(company.id)}
+                    onClick={() => openDeleteModal(company)}
                     className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
                     title="Supprimer"
                   >
@@ -292,7 +764,7 @@ const Companies = () => {
               </p>
               {companies.length === 0 && (
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={openCreateModal}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <Plus className="h-5 w-5 mr-2" />
@@ -365,102 +837,93 @@ const Companies = () => {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
-      {(showCreateModal || editingCompany) && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                {editingCompany ? 'Modifier l\'entreprise' : 'Nouvelle entreprise'}
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && companyToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trash2 className="h-8 w-8 text-red-600" />
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                Supprimer l'entreprise
               </h3>
 
-              <form onSubmit={editingCompany ? handleUpdate : handleCreate}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nom de l'entreprise
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
-                </div>
+              <p className="text-gray-600 mb-6">
+                Êtes-vous sûr de vouloir supprimer l'entreprise <span className="font-semibold text-gray-900">"{companyToDelete.name}"</span> ?
+                Cette action est irréversible et supprimera toutes les données associées.
+              </p>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Devise
-                  </label>
-                  <select
-                    value={formData.currency}
-                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="EUR">EUR (€)</option>
-                    <option value="USD">USD ($)</option>
-                    <option value="XOF">XOF (CFA)</option>
-                  </select>
-                </div>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Logo (URL)
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.logo}
-                    onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="https://example.com/logo.png"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Couleur primaire
-                    </label>
-                    <input
-                      type="color"
-                      value={formData.primaryColor}
-                      onChange={(e) => setFormData({ ...formData, primaryColor: e.target.value })}
-                      className="w-full h-10 border border-gray-300 rounded-md cursor-pointer"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Couleur secondaire
-                    </label>
-                    <input
-                      type="color"
-                      value={formData.secondaryColor}
-                      onChange={(e) => setFormData({ ...formData, secondaryColor: e.target.value })}
-                      className="w-full h-10 border border-gray-300 rounded-md cursor-pointer"
-                    />
+              {deleteError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
+                    <span className="text-red-700 font-medium">{deleteError}</span>
                   </div>
                 </div>
+              )}
 
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setEditingCompany(null);
-                      setFormData({ name: '', currency: 'EUR', logo: '', primaryColor: '#6B7280', secondaryColor: '#374151' });
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700"
-                  >
-                    {editingCompany ? 'Modifier' : 'Créer'}
-                  </button>
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setCompanyToDelete(null);
+                  }}
+                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 font-medium"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create/Edit Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="p-3 bg-blue-600 rounded-xl mr-4">
+                    <Building2 className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {editingCompany ? 'Modifier l\'Entreprise' : 'Créer une Nouvelle Entreprise'}
+                    </h2>
+                    <p className="text-gray-600 mt-1">
+                      {editingCompany
+                        ? 'Modifiez les informations de l\'entreprise'
+                        : 'Configurez l\'entreprise et créez son administrateur'
+                      }
+                    </p>
+                  </div>
                 </div>
-              </form>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600 p-2"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <CompanyForm
+                editingCompany={editingCompany}
+                onSuccess={() => {
+                  closeModal();
+                  loadCompanies();
+                }}
+                onCancel={closeModal}
+              />
             </div>
           </div>
         </div>

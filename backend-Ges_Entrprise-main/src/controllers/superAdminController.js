@@ -5,7 +5,7 @@ const companySchema = Joi.object({
   name: Joi.string().required(),
   settings: Joi.object().optional(),
   currency: Joi.string().optional(),
-  logo: Joi.string().uri().optional(),
+  logo: Joi.string().allow('').optional(),
   primaryColor: Joi.string().optional(),
   secondaryColor: Joi.string().optional(),
 });
@@ -14,6 +14,18 @@ const userSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
   role: Joi.string().valid('ADMIN', 'CAISSIER').required(),
+});
+
+const companyWithAdminSchema = Joi.object({
+  name: Joi.string().required(),
+  currency: Joi.string().optional(),
+  logo: Joi.string().uri().optional(),
+  primaryColor: Joi.string().optional(),
+  secondaryColor: Joi.string().optional(),
+  adminEmail: Joi.string().email().required(),
+  adminPassword: Joi.string().min(6).required(),
+  adminName: Joi.string().required(),
+  adminPosition: Joi.string().optional(),
 });
 
 class SuperAdminController {
@@ -36,6 +48,30 @@ class SuperAdminController {
     } catch (error) {
       res.status(400).json({
         errorCode: 'CREATE_COMPANY_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  async createCompanyWithAdmin(req, res) {
+    try {
+      const { error } = companyWithAdminSchema.validate(req.body);
+      if (error) {
+        return res.status(400).json({
+          errorCode: 'VALIDATION_ERROR',
+          message: error.details[0].message,
+        });
+      }
+
+      const result = await superAdminService.createCompanyWithAdmin(req.body);
+
+      res.status(201).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        errorCode: 'CREATE_COMPANY_WITH_ADMIN_FAILED',
         message: error.message,
       });
     }
@@ -164,15 +200,20 @@ class SuperAdminController {
       if (!req.file) {
         return res.status(400).json({
           errorCode: 'VALIDATION_ERROR',
-          message: 'No file uploaded',
+          message: 'Aucun fichier uploadé',
         });
       }
 
-      const result = await superAdminService.uploadFile(req.file);
+      // Retourner l'URL accessible du fichier
+      const fileUrl = `${req.protocol}://${req.get('host')}/uploads/logos/${req.file.filename}`;
 
       res.json({
         success: true,
-        data: result,
+        data: {
+          filename: req.file.originalname,
+          url: fileUrl,
+          size: req.file.size,
+        },
       });
     } catch (error) {
       res.status(500).json({

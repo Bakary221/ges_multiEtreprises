@@ -11,6 +11,7 @@ import RegisterSuperAdmin from './pages/Auth/RegisterSuperAdmin';
 import SuperAdminDashboard from './pages/SuperAdmin/Dashboard';
 import Companies from './pages/SuperAdmin/Companies';
 import Statistics from './pages/SuperAdmin/Statistics';
+import CreateCompany from './pages/SuperAdmin/CreateCompany';
 
 // Admin Pages
 import AdminDashboard from './pages/Admin/Dashboard';
@@ -104,6 +105,22 @@ function App() {
                 <Layout>
                   <Statistics />
                 </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/superadmin/companies/create"
+            element={
+              <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                <CreateCompany />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/superadmin/companies/:id"
+            element={
+              <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                <CreateCompany />
               </ProtectedRoute>
             }
           />

@@ -19,6 +19,83 @@ class SuperAdminService {
     return company;
   }
 
+  async createCompanyWithAdmin(data) {
+    const {
+      name,
+      currency,
+      logo,
+      primaryColor,
+      secondaryColor,
+      adminEmail,
+      adminPassword,
+      adminName,
+      adminPosition
+    } = data;
+
+    // Vérifier si l'email existe déjà
+    const existingUser = await prisma.user.findUnique({
+      where: { email: adminEmail }
+    });
+
+    if (existingUser) {
+      throw new Error('Un utilisateur avec cet email existe déjà');
+    }
+
+    // Créer l'entreprise
+    const company = await prisma.company.create({
+      data: {
+        name,
+        currency: currency || 'EUR',
+        logo,
+        primaryColor,
+        secondaryColor,
+        settings: {
+          timezone: 'Africa/Dakar',
+          language: 'fr',
+          workingHours: { start: '08:00', end: '17:00' }
+        }
+      },
+    });
+
+    // Créer l'utilisateur admin
+    const hashedPassword = await bcrypt.hash(adminPassword, 12);
+    const adminUser = await prisma.user.create({
+      data: {
+        email: adminEmail,
+        password: hashedPassword,
+        role: 'ADMIN',
+        companyId: company.id,
+      },
+    });
+
+    // Créer l'employé admin
+    const adminEmployee = await prisma.employee.create({
+      data: {
+        name: adminName,
+        position: adminPosition || 'Administrateur',
+        salary: 150000, // Salaire par défaut pour admin
+        companyId: company.id,
+        userId: adminUser.id,
+      },
+    });
+
+    // Créer un département RH par défaut
+    await prisma.department.create({
+      data: {
+        name: 'Ressources Humaines',
+        companyId: company.id,
+      },
+    });
+
+    return {
+      company,
+      admin: {
+        user: adminUser,
+        employee: adminEmployee
+      }
+    };
+  }
+
   async getCompanies() {
     const companies = await prisma.company.findMany({
       include: {
@@ -98,20 +175,37 @@ class SuperAdminService {
   }
 
   async deleteCompany(id) {
-    // Vérifier si la company a des utilisateurs actifs
-    const userCount = await prisma.user.count({
-      where: { companyId: parseInt(id) },
+    const companyId = parseInt(id);
+
+    // Vérifier si la company existe
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { id: true, name: true }
     });
 
-    if (userCount > 0) {
-      throw new Error('Cannot delete company with active users');
+    if (!company) {
+      throw new Error('Entreprise introuvable');
     }
 
-    await prisma.company.delete({
-      where: { id: parseInt(id) },
+    // Vérifier si la company a des utilisateurs actifs
+    const userCount = await prisma.user.count({
+      where: { companyId: companyId },
     });
 
-    return { message: 'Company deleted successfully' };
+    console.log(`Tentative de suppression de l'entreprise ${company.name} (ID: ${companyId}) - Utilisateurs actifs: ${userCount}`);
+
+    if (userCount > 0) {
+      throw new Error(`Impossible de supprimer l'entreprise car elle contient ${userCount} utilisateur(s) actif(s). Veuillez d'abord supprimer ou désactiver tous les utilisateurs.`);
+    }
+
+    // Supprimer l'entreprise
+    await prisma.company.delete({
+      where: { id: companyId },
+    });
+
+    console.log(`Entreprise ${company.name} (ID: ${companyId}) supprimée avec succès`);
+
+    return { message: 'Entreprise supprimée avec succès' };
   }
 
   async createUserForCompany(companyId, data) {
@@ -208,11 +302,18 @@ class SuperAdminService {
     });
 
     // Get department names
-    const departmentIds = departmentStats.map(stat => stat.departmentId);
-    const departments = await prisma.department.findMany({
-      where: { id: { in: departmentIds } },
+    const departmentIds = departmentStats
+      .map(stat => stat.departmentId)
+      .filter(id => id !== null && id !== undefined);
+
+    const departments = departmentIds.length > 0 ? await prisma.department.findMany({
+      where: {
+        id: {
+          in: departmentIds
+        }
+      },
       select: { id: true, name: true }
-    });
+    }) : [];
 
     const departmentMap = departments.reduce((acc, dept) => {
       acc[dept.id] = dept.name;
