@@ -34,16 +34,22 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
-          const response = await axios.post('http://localhost:3000/auth/refresh', {
+          console.log('Attempting token refresh...');
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
             refreshToken,
           });
 
-          if (response.data && response.data.accessToken) {
-            const { accessToken } = response.data;
+          if (response.data && response.data.data && response.data.data.accessToken) {
+            const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+            console.log('Token refresh successful');
             localStorage.setItem('accessToken', accessToken);
+            if (newRefreshToken) {
+              localStorage.setItem('refreshToken', newRefreshToken);
+            }
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return api.request(originalRequest);
           } else {
+            console.error('Invalid refresh response format:', response.data);
             throw new Error('Invalid refresh response');
           }
         } catch (refreshError) {
@@ -56,6 +62,7 @@ api.interceptors.response.use(
           return Promise.reject(refreshError);
         }
       } else {
+        console.log('No refresh token available');
         // No refresh token, redirect to login
         window.location.href = '/login';
         return Promise.reject(error);
