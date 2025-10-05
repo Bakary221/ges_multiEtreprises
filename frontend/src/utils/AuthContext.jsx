@@ -27,8 +27,8 @@ export const AuthProvider = ({ children }) => {
         setUser(currentUser);
         setIsAuthenticated(authenticated);
         setUserRole(role);
+
       } catch (error) {
-        console.error('Auth initialization error:', error);
         // Clear invalid tokens
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -44,12 +44,15 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
+
   const login = async (email, password) => {
     try {
       const userData = await authService.login(email, password);
+
       setUser(userData);
       setIsAuthenticated(true);
       setUserRole(userData.role);
+
       return userData;
     } catch (error) {
       setUser(null);
@@ -63,7 +66,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await authService.logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      // Ignore logout errors
     } finally {
       // Always clear local state
       setUser(null);
@@ -99,7 +102,6 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Token refresh failed');
       }
     } catch (error) {
-      console.error('Token refresh error:', error);
       // Clear invalid tokens
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');

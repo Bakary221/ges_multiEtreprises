@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../utils/AuthContext';
 import { companyService } from '../../services/companyService';
+import { useNotifications } from '../../hooks/useNotifications';
 import {
   Building2,
   User,
@@ -22,6 +23,7 @@ const CreateCompany = () => {
   const { search } = useLocation();
   const urlParams = new URLSearchParams(search);
   const id = urlParams.get('id');
+  const { success: showSuccessNotification } = useNotifications();
 
   const [isEditing, setIsEditing] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
@@ -43,7 +45,6 @@ const CreateCompany = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [logoPreview, setLogoPreview] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   // Load company data if editing
   useEffect(() => {
@@ -212,16 +213,21 @@ const CreateCompany = () => {
         };
         await companyService.updateCompany(id, updateData);
       } else {
-        await companyService.createCompanyWithAdmin(formData);
+        console.log('📤 Données envoyées au backend:', formData);
+        const response = await companyService.createCompany(formData);
+        console.log('📥 Réponse du backend:', response);
       }
 
-      setSuccess(true);
+      showSuccessNotification(
+        isEditing ? 'Entreprise modifiée avec succès !' : 'Entreprise créée avec succès !',
+        5000
+      );
       setTimeout(() => {
         navigate('/superadmin/companies');
-      }, 2000);
+      }, 5000);
 
     } catch (error) {
-      console.error('Error saving company:', error);
+      console.error('❌ Error saving company:', error);
 
       if (error.response?.data?.message) {
         if (error.response.data.message.includes('email')) {
@@ -249,26 +255,6 @@ const CreateCompany = () => {
     return null;
   }
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Check className="h-10 w-10 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              {isEditing ? 'Entreprise modifiée avec succès !' : 'Entreprise créée avec succès !'}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Redirection vers la liste des entreprises...
-            </p>
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-200 border-t-indigo-600 mx-auto"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">

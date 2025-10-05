@@ -3,20 +3,124 @@ const bcrypt = require('bcryptjs');
 
 class SuperAdminService {
   async createCompany(data) {
-    const { name, settings, currency, logo, primaryColor, secondaryColor } = data;
-
-    const company = await prisma.company.create({
-      data: {
-        name,
-        settings: settings || {},
-        currency: currency || 'EUR',
-        logo,
-        primaryColor,
-        secondaryColor,
-      },
+    console.log('🏭 Début création entreprise avec données:', {
+      name: data.name,
+      adminEmail: data.adminEmail,
+      adminName: data.adminName,
+      hasPassword: !!data.adminPassword
     });
 
-    return company;
+    const {
+      name,
+      currency,
+      logo,
+      primaryColor,
+      secondaryColor,
+      adminEmail,
+      adminPassword,
+      adminName,
+      adminPosition
+    } = data;
+
+    // Utiliser une transaction pour assurer l'atomicité
+    const result = await prisma.$transaction(async (prisma) => {
+      console.log('🔍 Vérification email existant...');
+      // Vérifier si l'email existe déjà
+      const existingUser = await prisma.user.findUnique({
+        where: { email: adminEmail }
+      });
+
+      if (existingUser) {
+        console.log('❌ Email déjà existant:', adminEmail);
+        throw new Error('Un utilisateur avec cet email existe déjà');
+      }
+      console.log('✅ Email disponible');
+
+      console.log('🏢 Création de l\'entreprise...');
+      // Créer l'entreprise
+      const company = await prisma.company.create({
+        data: {
+          name,
+          currency: currency || 'EUR',
+          logo,
+          primaryColor,
+          secondaryColor,
+          settings: {
+            timezone: 'Africa/Dakar',
+            language: 'fr',
+            workingHours: { start: '08:00', end: '17:00' }
+          }
+        },
+      });
+      console.log('✅ Entreprise créée, ID:', company.id);
+
+      console.log('👤 Création de l\'utilisateur admin...');
+      // Créer l'utilisateur admin
+      const hashedPassword = await bcrypt.hash(adminPassword, 12);
+      const adminUser = await prisma.user.create({
+        data: {
+          email: adminEmail,
+          password: hashedPassword,
+          role: 'ADMIN',
+          companyId: company.id,
+        },
+      });
+      console.log('✅ Utilisateur créé, ID:', adminUser.id);
+
+      console.log('👷 Création de l\'employé admin...');
+      // Créer l'employé admin
+      const adminEmployee = await prisma.employee.create({
+        data: {
+          name: adminName,
+          position: adminPosition || 'Administrateur',
+          salary: 150000, // Salaire par défaut pour admin
+          companyId: company.id,
+          userId: adminUser.id,
+        },
+      });
+      console.log('✅ Employé créé, ID:', adminEmployee.id);
+
+      console.log('🏗️ Création des départements...');
+      // Créer les départements par défaut
+      const defaultDepartments = [
+        { name: 'Ressources Humaines', companyId: company.id },
+        { name: 'Direction Générale', companyId: company.id },
+        { name: 'Comptabilité', companyId: company.id },
+        { name: 'Informatique', companyId: company.id },
+        { name: 'Commercial', companyId: company.id },
+        { name: 'Production', companyId: company.id },
+      ];
+
+      await prisma.department.createMany({
+        data: defaultDepartments,
+      });
+      console.log('✅ 6 départements créés');
+
+      console.log('📝 Création du log...');
+      // Créer des logs d'initialisation
+      await prisma.log.create({
+        data: {
+          userId: adminUser.id,
+          companyId: company.id,
+          action: 'COMPANY_CREATED',
+          entity: 'Company',
+          details: { companyName: company.name, adminEmail: adminUser.email },
+        },
+      });
+      console.log('✅ Log créé');
+
+      console.log('🎉 Transaction terminée avec succès');
+      return {
+        company,
+        admin: {
+          user: adminUser,
+          employee: adminEmployee
+        }
+      };
+    });
+
+    console.log('✅ Méthode createCompany terminée');
+    return result;
   }
 
   async createCompanyWithAdmin(data) {
@@ -32,68 +136,90 @@ class SuperAdminService {
       adminPosition
     } = data;
 
-    // Vérifier si l'email existe déjà
-    const existingUser = await prisma.user.findUnique({
-      where: { email: adminEmail }
-    });
+    // Utiliser une transaction pour assurer l'atomicité
+    const result = await prisma.$transaction(async (prisma) => {
+      // Vérifier si l'email existe déjà
+      const existingUser = await prisma.user.findUnique({
+        where: { email: adminEmail }
+      });
 
-    if (existingUser) {
-      throw new Error('Un utilisateur avec cet email existe déjà');
-    }
-
-    // Créer l'entreprise
-    const company = await prisma.company.create({
-      data: {
-        name,
-        currency: currency || 'EUR',
-        logo,
-        primaryColor,
-        secondaryColor,
-        settings: {
-          timezone: 'Africa/Dakar',
-          language: 'fr',
-          workingHours: { start: '08:00', end: '17:00' }
-        }
-      },
-    });
-
-    // Créer l'utilisateur admin
-    const hashedPassword = await bcrypt.hash(adminPassword, 12);
-    const adminUser = await prisma.user.create({
-      data: {
-        email: adminEmail,
-        password: hashedPassword,
-        role: 'ADMIN',
-        companyId: company.id,
-      },
-    });
-
-    // Créer l'employé admin
-    const adminEmployee = await prisma.employee.create({
-      data: {
-        name: adminName,
-        position: adminPosition || 'Administrateur',
-        salary: 150000, // Salaire par défaut pour admin
-        companyId: company.id,
-        userId: adminUser.id,
-      },
-    });
-
-    // Créer un département RH par défaut
-    await prisma.department.create({
-      data: {
-        name: 'Ressources Humaines',
-        companyId: company.id,
-      },
-    });
-
-    return {
-      company,
-      admin: {
-        user: adminUser,
-        employee: adminEmployee
+      if (existingUser) {
+        throw new Error('Un utilisateur avec cet email existe déjà');
       }
-    };
+
+      // Créer l'entreprise
+      const company = await prisma.company.create({
+        data: {
+          name,
+          currency: currency || 'EUR',
+          logo,
+          primaryColor,
+          secondaryColor,
+          settings: {
+            timezone: 'Africa/Dakar',
+            language: 'fr',
+            workingHours: { start: '08:00', end: '17:00' }
+          }
+        },
+      });
+
+      // Créer l'utilisateur admin
+      const hashedPassword = await bcrypt.hash(adminPassword, 12);
+      const adminUser = await prisma.user.create({
+        data: {
+          email: adminEmail,
+          password: hashedPassword,
+          role: 'ADMIN',
+          companyId: company.id,
+        },
+      });
+
+      // Créer l'employé admin
+      const adminEmployee = await prisma.employee.create({
+        data: {
+          name: adminName,
+          position: adminPosition || 'Administrateur',
+          salary: 150000, // Salaire par défaut pour admin
+          companyId: company.id,
+          userId: adminUser.id,
+        },
+      });
+
+      // Créer les départements par défaut
+      const defaultDepartments = [
+        { name: 'Ressources Humaines', companyId: company.id },
+        { name: 'Direction Générale', companyId: company.id },
+        { name: 'Comptabilité', companyId: company.id },
+        { name: 'Informatique', companyId: company.id },
+        { name: 'Commercial', companyId: company.id },
+        { name: 'Production', companyId: company.id },
+      ];
+
+      await prisma.department.createMany({
+        data: defaultDepartments,
+      });
+
+      // Créer des logs d'initialisation
+      await prisma.log.create({
+        data: {
+          userId: adminUser.id,
+          companyId: company.id,
+          action: 'COMPANY_CREATED',
+          entity: 'Company',
+          details: { companyName: company.name, adminEmail: adminUser.email },
+        },
+      });
+
+      return {
+        company,
+        admin: {
+          user: adminUser,
+          employee: adminEmployee
+        }
+      };
+    });
+
+    return result;
   }
 
   async getCompanies() {
@@ -130,8 +256,8 @@ class SuperAdminService {
       adminName: company.users.length > 0
         ? (company.users[0].employee?.name || company.users[0].email)
         : null,
-      totalPayroll: company.payruns.reduce((total, payrun) =>
-        total + payrun.payslips.reduce((sum, payslip) => sum + payslip.netSalary, 0), 0
+      totalPayroll: (company.payruns || []).reduce((total, payrun) =>
+        total + (payrun.payslips || []).reduce((sum, payslip) => sum + (payslip.netSalary || 0), 0), 0
       ),
     }));
   }

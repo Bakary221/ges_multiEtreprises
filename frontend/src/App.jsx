@@ -1,7 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './utils/AuthContext';
+import { CompanyProvider } from './utils/CompanyContext';
+import { useNotifications } from './hooks/useNotifications';
 import Layout from './components/Layout';
+import AdminLayout from './components/AdminLayout';
+import NotificationContainer from './components/NotificationContainer';
 
 // Auth Pages
 import Login from './pages/Auth/Login';
@@ -16,7 +20,9 @@ import CreateCompany from './pages/SuperAdmin/CreateCompany';
 // Admin Pages
 import AdminDashboard from './pages/Admin/Dashboard';
 import Employees from './pages/Admin/Employees';
+import Badges from './pages/Admin/Badges';
 import Attendance from './pages/Admin/Attendance';
+import AttendanceScan from './pages/Admin/AttendanceScan';
 import Timesheets from './pages/Admin/Timesheets';
 import Departments from './pages/Admin/Departments';
 import Contracts from './pages/Admin/Contracts';
@@ -69,9 +75,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 };
 
 function App() {
-  return (
-    <AuthProvider>
-      <Router>
+  const AppContent = () => {
+    const { notifications, removeNotification } = useNotifications();
+
+    return (
+      <>
+        <Router>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
@@ -130,9 +139,9 @@ function App() {
             path="/admin/dashboard"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <Layout>
+                <AdminLayout>
                   <AdminDashboard />
-                </Layout>
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -140,9 +149,19 @@ function App() {
             path="/admin/employees"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <Layout>
+                <AdminLayout>
                   <Employees />
-                </Layout>
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/badges"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <Badges />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -150,9 +169,19 @@ function App() {
             path="/admin/attendance"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <Layout>
+                <AdminLayout>
                   <Attendance />
-                </Layout>
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/attendance/scan"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <AttendanceScan />
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -160,9 +189,9 @@ function App() {
             path="/admin/timesheets"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <Layout>
+                <AdminLayout>
                   <Timesheets />
-                </Layout>
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -170,9 +199,9 @@ function App() {
             path="/admin/departments"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <Layout>
+                <AdminLayout>
                   <Departments />
-                </Layout>
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -180,9 +209,9 @@ function App() {
             path="/admin/contracts"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <Layout>
+                <AdminLayout>
                   <Contracts />
-                </Layout>
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -190,9 +219,9 @@ function App() {
             path="/admin/leaves"
             element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
-                <Layout>
+                <AdminLayout>
                   <Leaves />
-                </Layout>
+                </AdminLayout>
               </ProtectedRoute>
             }
           />
@@ -275,7 +304,17 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </Router>
+        </Router>
+        <NotificationContainer notifications={notifications} onRemove={removeNotification} />
+      </>
+    );
+  };
+
+  return (
+    <AuthProvider>
+      <CompanyProvider>
+        <AppContent />
+      </CompanyProvider>
     </AuthProvider>
   );
 }

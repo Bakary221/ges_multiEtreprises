@@ -53,38 +53,6 @@ const Layout = ({ children }) => {
             ]
           }
         ];
-      case 'ADMIN':
-        return [
-          {
-            title: 'Tableau de Bord',
-            items: [
-              { name: 'Dashboard', href: '/admin/dashboard', icon: Home },
-            ]
-          },
-          {
-            title: 'Ressources Humaines',
-            items: [
-              { name: 'Employés', href: '/admin/employees', icon: Users },
-              { name: 'Départements', href: '/admin/departments', icon: Building2 },
-              { name: 'Congés', href: '/admin/leaves', icon: Calendar },
-            ]
-          },
-          {
-            title: 'Suivi & Contrôle',
-            items: [
-              { name: 'Présences', href: '/admin/attendance', icon: FileText },
-              { name: 'Timesheets', href: '/admin/timesheets', icon: FileText },
-              { name: 'Contrats', href: '/admin/contracts', icon: FileText },
-            ]
-          },
-          {
-            title: 'Finance',
-            items: [
-              { name: 'Paie', href: '/admin/payroll', icon: CreditCard },
-              { name: 'Rapports', href: '/admin/reports', icon: BarChart3 },
-            ]
-          }
-        ];
       case 'CAISSIER':
         return [
           {
@@ -233,7 +201,7 @@ const Layout = ({ children }) => {
                           to={item.href}
                           className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors duration-150 ${
                             isActive
-                              ? 'bg-indigo-100 text-indigo-700 border-r-2 border-indigo-700 shadow-sm'
+                              ? `shadow-sm border-r-2`
                               : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                           }`}
                           onClick={() => setSidebarOpen(false)}

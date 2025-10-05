@@ -37,6 +37,24 @@ export const employeeService = {
     return response.data;
   },
 
+  // Get employees with filters and pagination (for admin)
+  getEmployees: async (filters = {}) => {
+    const queryParams = new URLSearchParams();
+
+    // Add pagination
+    if (filters.page) queryParams.append('page', filters.page);
+    if (filters.limit) queryParams.append('limit', filters.limit);
+
+    // Add filters
+    if (filters.search) queryParams.append('search', filters.search);
+    if (filters.position) queryParams.append('position', filters.position);
+    if (filters.department) queryParams.append('departmentId', filters.department);
+    if (filters.status) queryParams.append('status', filters.status);
+
+    const response = await api.get(`/employees?${queryParams}`);
+    return response.data;
+  },
+
   // Get current employee profile (for employee role)
   getCurrentEmployee: async () => {
     const response = await api.get('/me');
@@ -46,6 +64,53 @@ export const employeeService = {
   // Update current employee profile
   updateCurrentEmployeeProfile: async (profileData) => {
     const response = await api.put('/me/profile', profileData);
+    return response.data;
+  },
+
+  // Get company statistics for admin dashboard
+  getCompanyStats: async () => {
+    const response = await api.get('/company/stats');
+    return response.data;
+  },
+
+  // Get employees with pagination and filters
+  getEmployees: async (params = {}) => {
+    const queryParams = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const url = `/employees${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await api.get(url);
+
+    if (response.data.success) {
+      const { employees, total, limit, offset, stats } = response.data.data;
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        success: true,
+        data: {
+          employees,
+          total,
+          totalPages,
+          currentPage: Math.floor(offset / limit) + 1,
+          limit,
+          stats
+        }
+      };
+    }
+
+    throw new Error(response.data.message || 'Failed to fetch employees');
+
+    return response.data;
+  },
+
+  // Get dashboard charts data
+  getDashboardCharts: async () => {
+    const response = await api.get('/dashboard/charts');
     return response.data;
   },
 };

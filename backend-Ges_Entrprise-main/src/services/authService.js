@@ -54,6 +54,7 @@ class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        companyId: user.companyId, // Ajouter companyId dans la réponse utilisateur
         company: user.company,
       },
       accessToken,

@@ -102,8 +102,8 @@ const { authenticate } = require('./src/middlewares/auth');
 
 // Appliquer l'authentification aux routes protégées
 app.use('/', authenticate);
-app.use('/', require('./src/routes/superAdmin'));
 app.use('/', require('./src/routes/admin'));
+app.use('/', require('./src/routes/superAdmin'));
 app.use('/', require('./src/routes/caissier'));
 app.use('/', require('./src/routes/employee'));
 app.use('/webhooks', require('./src/routes/webhooks'));

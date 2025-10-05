@@ -2,11 +2,19 @@ import api from './api';
 
 export const authService = {
   login: async (email, password) => {
+    console.log('🔐 authService: Starting login for:', email);
     const response = await api.post('/auth/login', { email, password });
     const { data: { accessToken, refreshToken, user } } = response.data;
+    console.log('🔐 authService: Raw user data from API:', user);
+
+    // Le companyId vient maintenant directement du backend
+    console.log('🔐 authService: User data with companyId from backend:', user);
+
     localStorage.setItem('accessToken', accessToken);
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(user));
+
+    console.log('🔐 authService: Data stored in localStorage');
     return user;
   },
 

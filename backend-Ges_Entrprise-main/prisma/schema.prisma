@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,104 +8,108 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      Role
-  companyId Int?
-  status    Status   @default(ACTIVE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  employee  Employee?
-  company   Company? @relation(fields: [companyId], references: [id])
-  logs      Log[]
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  password      String
+  role          Role
+  companyId     Int?
+  status        Status         @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  employee      Employee?
+  logs          Log[]
   notifications Notification[]
+  company       Company?       @relation(fields: [companyId], references: [id])
 
+  @@index([companyId], map: "users_companyId_fkey")
   @@map("users")
 }
 
 model Company {
-  id             Int      @id @default(autoincrement())
+  id             Int           @id @default(autoincrement())
   name           String
   settings       Json?
-  currency       String   @default("EUR")
+  currency       String        @default("EUR")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   logo           String?
   primaryColor   String?
   secondaryColor String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  users       User[]
-  employees   Employee[]
-  departments Department[]
-  payruns     Payrun[]
-  integrations Integration[]
-  logs        Log[]
+  departments    Department[]
+  employees      Employee[]
+  integrations   Integration[]
+  logs           Log[]
+  payruns        Payrun[]
+  users          User[]
 
   @@map("companies")
 }
 
 model Employee {
-  id           Int       @id @default(autoincrement())
-  userId       Int?      @unique
-  name         String
-  position     String
-  salary       Float
-  departmentId Int?
-  contractId   Int?
-  companyId    Int
-  archived     Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  user         User?     @relation(fields: [userId], references: [id])
-  company      Company   @relation(fields: [companyId], references: [id])
-  department   Department? @relation(fields: [departmentId], references: [id])
-  contract     Contract?
-  attendances  Attendance[]
-  timesheets   Timesheet[]
-  payslips     Payslip[]
+  id               Int            @id @default(autoincrement())
+  userId           Int?           @unique
+  matricule        String?        @unique
+  name             String
+  email            String?
+  position         String
+  salary           Float
+  contractType     ContractType?  @default(FIXE)
+  departmentId     Int?
+  contractId       Int?
+  companyId        Int
+  archived         Boolean        @default(false)
+  badgeGeneratedAt DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  attendances   Attendance[]
+  contract      Contract?
+  company       Company        @relation(fields: [companyId], references: [id])
+  department    Department?    @relation(fields: [departmentId], references: [id])
+  user          User?          @relation(fields: [userId], references: [id])
   leaveRequests LeaveRequest[]
+  payslips      Payslip[]
+  timesheets    Timesheet[]
 
+  @@index([companyId], map: "employees_companyId_fkey")
+  @@index([departmentId], map: "employees_departmentId_fkey")
   @@map("employees")
 }
 
 model Department {
-  id        Int      @id @default(autoincrement())
+  id        Int        @id @default(autoincrement())
   name      String
   companyId Int
-  createdAt DateTime @default(now())
-
-  company   Company   @relation(fields: [companyId], references: [id])
+  createdAt DateTime   @default(now())
+  company   Company    @relation(fields: [companyId], references: [id])
   employees Employee[]
 
+  @@index([companyId], map: "departments_companyId_fkey")
   @@map("departments")
 }
 
 model Contract {
-  id        Int      @id @default(autoincrement())
-  type      String
-  startDate DateTime
-  endDate   DateTime?
-  salary    Float
-  employeeId Int     @unique
-  createdAt DateTime @default(now())
-
-  employee  Employee @relation(fields: [employeeId], references: [id])
+  id         Int       @id @default(autoincrement())
+  type       String
+  startDate  DateTime
+  endDate    DateTime?
+  salary     Float
+  employeeId Int       @unique
+  createdAt  DateTime  @default(now())
+  employee   Employee  @relation(fields: [employeeId], references: [id])
 
   @@map("contracts")
 }
 
 model Attendance {
-  id         Int      @id @default(autoincrement())
-  employeeId Int
-  timestamp  DateTime
-  type       AttendanceType
-  createdAt  DateTime @default(now())
+  id          Int            @id @default(autoincrement())
+  employeeId  Int
+  timestamp   DateTime
+  type        AttendanceType
+  hoursWorked Float?
+  createdAt   DateTime       @default(now())
+  employee    Employee       @relation(fields: [employeeId], references: [id])
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
-
+  @@index([employeeId], map: "attendances_employeeId_fkey")
   @@map("attendances")
 }
 
@@ -119,76 +120,77 @@ model Timesheet {
   hoursWorked Float
   validated   Boolean  @default(false)
   createdAt   DateTime @default(now())
-
   employee    Employee @relation(fields: [employeeId], references: [id])
 
+  @@index([employeeId], map: "timesheets_employeeId_fkey")
   @@map("timesheets")
 }
 
 model Payrun {
-  id         Int      @id @default(autoincrement())
-  companyId  Int
-  month      String
+  id          Int       @id @default(autoincrement())
+  companyId   Int
+  month       String
   totalAmount Float
-  createdAt  DateTime @default(now())
+  createdAt   DateTime  @default(now())
+  company     Company   @relation(fields: [companyId], references: [id])
+  payslips    Payslip[]
 
-  company    Company  @relation(fields: [companyId], references: [id])
-  payslips   Payslip[]
-
+  @@index([companyId], map: "payruns_companyId_fkey")
   @@map("payruns")
 }
 
 model Payslip {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   employeeId Int
   payrunId   Int
   netSalary  Float
   pdfUrl     String?
-  createdAt  DateTime @default(now())
-
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  payrun     Payrun   @relation(fields: [payrunId], references: [id])
+  createdAt  DateTime  @default(now())
   payments   Payment[]
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  payrun     Payrun    @relation(fields: [payrunId], references: [id])
 
+  @@index([employeeId], map: "payslips_employeeId_fkey")
+  @@index([payrunId], map: "payslips_payrunId_fkey")
   @@map("payslips")
 }
 
 model Payment {
-  id        Int         @id @default(autoincrement())
+  id        Int           @id @default(autoincrement())
   payslipId Int
   status    PaymentStatus @default(PENDING)
   method    String
   date      DateTime?
-  createdAt DateTime    @default(now())
+  createdAt DateTime      @default(now())
+  payslip   Payslip       @relation(fields: [payslipId], references: [id])
 
-  payslip   Payslip     @relation(fields: [payslipId], references: [id])
-
+  @@index([payslipId], map: "payments_payslipId_fkey")
   @@map("payments")
 }
 
 model LeaveRequest {
-  id         Int           @id @default(autoincrement())
+  id         Int         @id @default(autoincrement())
   employeeId Int
   startDate  DateTime
   endDate    DateTime
-  status     LeaveStatus   @default(PENDING)
-  createdAt  DateTime      @default(now())
+  status     LeaveStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  employee   Employee    @relation(fields: [employeeId], references: [id])
 
-  employee   Employee      @relation(fields: [employeeId], references: [id])
-
+  @@index([employeeId], map: "leave_requests_employeeId_fkey")
   @@map("leave_requests")
 }
 
 model Notification {
-  id        Int      @id @default(autoincrement())
+  id        Int                @id @default(autoincrement())
   userId    Int
   type      String
   content   String
   status    NotificationStatus @default(UNREAD)
-  createdAt DateTime @default(now())
+  createdAt DateTime           @default(now())
+  user      User               @relation(fields: [userId], references: [id])
 
-  user      User     @relation(fields: [userId], references: [id])
-
+  @@index([userId], map: "notifications_userId_fkey")
   @@map("notifications")
 }
 
@@ -198,9 +200,9 @@ model Integration {
   config    Json
   companyId Int
   createdAt DateTime @default(now())
-
   company   Company  @relation(fields: [companyId], references: [id])
 
+  @@index([companyId], map: "integrations_companyId_fkey")
   @@map("integrations")
 }
 
@@ -212,10 +214,11 @@ model Log {
   entity    String
   details   Json?
   createdAt DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id])
   company   Company? @relation(fields: [companyId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
+  @@index([companyId], map: "logs_companyId_fkey")
+  @@index([userId], map: "logs_userId_fkey")
   @@map("logs")
 }
 
@@ -251,4 +254,9 @@ enum LeaveStatus {
 enum NotificationStatus {
   READ
   UNREAD
+}
+
+enum ContractType {
+  FIXE
+  HONORAIRE
 }

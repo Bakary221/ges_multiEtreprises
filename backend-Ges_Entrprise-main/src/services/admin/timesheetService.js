@@ -35,34 +35,48 @@ class TimesheetService {
   }
 
   async getTimesheets(companyId, filters = {}) {
-    const { employeeId, month, validated, limit = 50, offset = 0 } = filters;
+    const { employeeId, month, validated, page = 1, limit = 10 } = filters;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {
       employee: {
-        companyId: parseInt(companyId),
         archived: false,
       },
     };
+
+    // Only filter by companyId if it's provided (not for SuperAdmin)
+    if (companyId && !isNaN(parseInt(companyId))) {
+      where.employee.companyId = parseInt(companyId);
+    }
 
     if (employeeId) where.employeeId = parseInt(employeeId);
     if (month) where.month = month;
     if (validated !== undefined) where.validated = validated === 'true';
 
-    const timesheets = await prisma.timesheet.findMany({
-      where,
-      include: {
-        employee: {
-          select: { id: true, name: true, position: true },
+    const [timesheets, total] = await Promise.all([
+      prisma.timesheet.findMany({
+        where,
+        include: {
+          employee: {
+            select: { id: true, name: true, position: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: parseInt(limit),
-      skip: parseInt(offset),
-    });
+        orderBy: { createdAt: 'desc' },
+        take: parseInt(limit),
+        skip: offset,
+      }),
+      prisma.timesheet.count({ where }),
+    ]);
 
-    const total = await prisma.timesheet.count({ where });
+    const totalPages = Math.ceil(total / parseInt(limit));
 
-    return { timesheets, total, limit: parseInt(limit), offset: parseInt(offset) };
+    return {
+      timesheets,
+      total,
+      totalPages,
+      currentPage: parseInt(page),
+      limit: parseInt(limit)
+    };
   }
 
   async validateTimesheet(companyId, timesheetId) {

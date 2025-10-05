@@ -2,7 +2,7 @@ const prisma = require('../../config/prisma');
 
 class AttendanceService {
   async scanAttendance(companyId, data) {
-    const { employeeId, type, timestamp } = data;
+    const { employeeId, type, timestamp, hoursWorked } = data;
 
     // Vérifier que l'employé appartient à la company
     const employee = await prisma.employee.findFirst({
@@ -22,6 +22,7 @@ class AttendanceService {
         employeeId: parseInt(employeeId),
         type,
         timestamp: timestamp ? new Date(timestamp) : new Date(),
+        hoursWorked: hoursWorked ? parseFloat(hoursWorked) : null,
       },
       include: {
         employee: {
@@ -34,14 +35,19 @@ class AttendanceService {
   }
 
   async getAttendances(companyId, filters = {}) {
-    const { employeeId, dateFrom, dateTo, limit = 100, offset = 0 } = filters;
+    const { employeeId, dateFrom, dateTo, page = 1, limit = 10 } = filters;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {
       employee: {
-        companyId: parseInt(companyId),
         archived: false,
       },
     };
+
+    // Only filter by companyId if it's provided (not for SuperAdmin)
+    if (companyId && !isNaN(parseInt(companyId))) {
+      where.employee.companyId = parseInt(companyId);
+    }
 
     if (employeeId) where.employeeId = parseInt(employeeId);
     if (dateFrom || dateTo) {
@@ -50,21 +56,30 @@ class AttendanceService {
       if (dateTo) where.timestamp.lte = new Date(dateTo);
     }
 
-    const attendances = await prisma.attendance.findMany({
-      where,
-      include: {
-        employee: {
-          select: { id: true, name: true, position: true },
+    const [attendances, total] = await Promise.all([
+      prisma.attendance.findMany({
+        where,
+        include: {
+          employee: {
+            select: { id: true, name: true, position: true },
+          },
         },
-      },
-      orderBy: { timestamp: 'desc' },
-      take: parseInt(limit),
-      skip: parseInt(offset),
-    });
+        orderBy: { timestamp: 'desc' },
+        take: parseInt(limit),
+        skip: offset,
+      }),
+      prisma.attendance.count({ where }),
+    ]);
 
-    const total = await prisma.attendance.count({ where });
+    const totalPages = Math.ceil(total / parseInt(limit));
 
-    return { attendances, total, limit: parseInt(limit), offset: parseInt(offset) };
+    return {
+      attendances,
+      total,
+      totalPages,
+      currentPage: parseInt(page),
+      limit: parseInt(limit)
+    };
   }
 
   async getAttendanceSummary(companyId, filters = {}) {

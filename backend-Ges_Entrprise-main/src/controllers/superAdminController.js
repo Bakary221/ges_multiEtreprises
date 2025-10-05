@@ -3,11 +3,14 @@ const Joi = require('joi');
 
 const companySchema = Joi.object({
   name: Joi.string().required(),
-  settings: Joi.object().optional(),
   currency: Joi.string().optional(),
-  logo: Joi.string().allow('').optional(),
+  logo: Joi.string().uri().optional(),
   primaryColor: Joi.string().optional(),
   secondaryColor: Joi.string().optional(),
+  adminEmail: Joi.string().email().required(),
+  adminPassword: Joi.string().min(6).required(),
+  adminName: Joi.string().required(),
+  adminPosition: Joi.string().optional(),
 });
 
 const userSchema = Joi.object({
@@ -31,15 +34,20 @@ const companyWithAdminSchema = Joi.object({
 class SuperAdminController {
   async createCompany(req, res) {
     try {
+      console.log('📥 Données reçues du frontend:', req.body);
+
       const { error } = companySchema.validate(req.body);
       if (error) {
+        console.log('❌ Erreur de validation:', error.details[0].message);
         return res.status(400).json({
           errorCode: 'VALIDATION_ERROR',
           message: error.details[0].message,
         });
       }
 
+      console.log('✅ Validation passée, création de l\'entreprise...');
       const company = await superAdminService.createCompany(req.body);
+      console.log('✅ Entreprise créée avec succès:', company);
 
       res.status(201).json({
         success: true,
