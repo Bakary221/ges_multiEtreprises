@@ -109,6 +109,22 @@ class AuthController {
       });
     }
   }
+
+  async revertImpersonate(req, res) {
+    try {
+      const result = await authService.revertImpersonate(req.user);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        errorCode: 'REVERT_IMPERSONATE_FAILED',
+        message: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new AuthController();

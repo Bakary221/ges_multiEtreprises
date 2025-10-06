@@ -5,12 +5,10 @@ const getEmployeeFromUser = require('../middlewares/employeeAuth');
 
 const router = express.Router();
 
-// Toutes les routes nécessitent authentification EMPLOYEE
 router.use(authenticate);
 router.use(authorize('EMPLOYEE'));
 router.use(getEmployeeFromUser);
 
-// Routes self-service
 router.get('/me', employeeController.getProfile);
 router.put('/me/profile', employeeController.updateProfile);
 router.get('/me/payslips', employeeController.getMyPayslips);

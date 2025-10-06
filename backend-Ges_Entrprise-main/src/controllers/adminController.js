@@ -77,25 +77,8 @@ class AdminController {
 
       const employee = await employeeService.createEmployee(req.user.companyId, employeeData);
 
-      // Send badge email to employee (async, don't wait)
-      try {
-        if (employee.email) {
-          const company = await prisma.company.findUnique({
-            where: { id: req.user.companyId },
-            select: { name: true, primaryColor: true, secondaryColor: true }
-          });
-
-          // Get badge info for email
-          const badge = await badgeService.generateEmployeeBadge(employee.id);
-
-          emailService.sendBadgeEmail(employee, badge, company)
-            .then(() => console.log('✅ CREATE_EMPLOYEE: Badge email sent successfully'))
-            .catch(err => console.error('❌ CREATE_EMPLOYEE: Failed to send badge email:', err.message));
-        }
-      } catch (emailError) {
-        console.error('❌ CREATE_EMPLOYEE: Error preparing badge email:', emailError.message);
-        // Don't fail the request if email fails
-      }
+      // Note: Badge will be generated manually via the badge generation endpoint
+      // when needed, not automatically during employee creation
 
       res.status(201).json({
         success: true,
@@ -390,21 +373,28 @@ class AdminController {
   // Payroll
   async generatePayrun(req, res) {
     try {
+      console.log('🔄 GENERATE_PAYRUN: Received request body:', req.body);
+      console.log('🔄 GENERATE_PAYRUN: User companyId:', req.user.companyId);
       const { error } = payrunSchema.validate(req.body);
       if (error) {
+        console.log('❌ GENERATE_PAYRUN: Validation error:', error.details[0].message);
         return res.status(400).json({
           errorCode: 'VALIDATION_ERROR',
           message: error.details[0].message,
         });
       }
 
+      console.log('✅ GENERATE_PAYRUN: Validation passed, calling service');
       const result = await payrollService.generatePayrun(req.user.companyId, req.body);
 
+      console.log('✅ GENERATE_PAYRUN: Service returned result:', result);
       res.status(201).json({
         success: true,
         data: result,
       });
     } catch (error) {
+      console.log('❌ GENERATE_PAYRUN: Service error:', error.message);
+      console.log('❌ GENERATE_PAYRUN: Error stack:', error.stack);
       res.status(400).json({
         errorCode: 'GENERATE_PAYRUN_FAILED',
         message: error.message,
@@ -1299,8 +1289,22 @@ class AdminController {
       const qrData = badgeService.generateQRData(employee);
       const qrCode = await badgeService.generateQRCode(qrData);
 
-      // Get badge URL - use fixed path based on matricule
-      const badgeUrl = `/uploads/badges/badge_${employee.matricule}.pdf`;
+      // Get badge URL - check which file exists
+      let badgeUrl = null;
+      const fs = require('fs');
+      const path = require('path');
+
+      // First try new format (with employee ID)
+      const badgePathId = path.join(process.cwd(), 'uploads/badges', `badge_${employee.id}.pdf`);
+      if (fs.existsSync(badgePathId)) {
+        badgeUrl = `/uploads/badges/badge_${employee.id}.pdf`;
+      } else {
+        // Try old format (with matricule)
+        const badgePathMatricule = path.join(process.cwd(), 'uploads/badges', `badge_${employee.matricule}.pdf`);
+        if (fs.existsSync(badgePathMatricule)) {
+          badgeUrl = `/uploads/badges/badge_${employee.matricule}.pdf`;
+        }
+      }
 
       res.json({
         success: true,
@@ -1361,15 +1365,30 @@ class AdminController {
         });
       }
 
-      // Check if badge file exists
+      // Check if badge file exists - try both naming conventions
       const fs = require('fs');
       const path = require('path');
-      const badgePath = path.join(process.cwd(), 'uploads/badges', `badge_${employee.matricule}.pdf`);
-      console.log('🖨️ GET_BADGE_PDF: Looking for badge file at:', badgePath);
-      console.log('🖨️ GET_BADGE_PDF: Employee matricule:', employee.matricule);
-      console.log('🖨️ GET_BADGE_PDF: process.cwd():', process.cwd());
+      let badgePath = null;
 
-      if (!fs.existsSync(badgePath)) {
+      // First try new format (with employee ID)
+      const badgePathId = path.join(process.cwd(), 'uploads/badges', `badge_${employee.id}.pdf`);
+      console.log('🖨️ GET_BADGE_PDF: Looking for badge file with ID at:', badgePathId);
+
+      if (fs.existsSync(badgePathId)) {
+        badgePath = badgePathId;
+        console.log('🖨️ GET_BADGE_PDF: Badge file found with ID');
+      } else {
+        // Try old format (with matricule)
+        const badgePathMatricule = path.join(process.cwd(), 'uploads/badges', `badge_${employee.matricule}.pdf`);
+        console.log('🖨️ GET_BADGE_PDF: Looking for badge file with matricule at:', badgePathMatricule);
+
+        if (fs.existsSync(badgePathMatricule)) {
+          badgePath = badgePathMatricule;
+          console.log('🖨️ GET_BADGE_PDF: Badge file found with matricule');
+        }
+      }
+
+      if (!badgePath) {
         console.log('🖨️ GET_BADGE_PDF: Badge file does not exist');
         return res.status(404).json({
           errorCode: 'BADGE_NOT_FOUND',
@@ -1462,6 +1481,58 @@ class AdminController {
     } catch (error) {
       res.status(400).json({
         errorCode: 'VALIDATE_QR_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  // Get payruns for admin
+  async getPayruns(req, res) {
+    try {
+      const filters = req.query;
+      const result = await payrollService.getPayruns(req.user.companyId, filters);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        errorCode: 'GET_PAYRUNS_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  // Update payrun status (admin can change DRAFT to CALCULATED)
+  async updatePayrunStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({
+          errorCode: 'VALIDATION_ERROR',
+          message: 'Status is required',
+        });
+      }
+
+      if (!['DRAFT', 'CALCULATED'].includes(status)) {
+        return res.status(400).json({
+          errorCode: 'VALIDATION_ERROR',
+          message: 'Invalid status for admin. Admin can only set DRAFT or CALCULATED',
+        });
+      }
+
+      const result = await payrollService.updatePayrunStatus(req.user.companyId, id, status, req.user.id);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        errorCode: 'UPDATE_PAYRUN_STATUS_FAILED',
         message: error.message,
       });
     }

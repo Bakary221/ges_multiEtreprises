@@ -127,6 +127,41 @@ class AuthService {
       refreshToken,
     };
   }
+
+  async revertImpersonate(currentUser) {
+    if (!currentUser.impersonatedBy) {
+      throw new Error('Not in impersonation mode');
+    }
+
+    const superAdmin = await prisma.user.findUnique({
+      where: { id: currentUser.impersonatedBy }
+    });
+
+    if (!superAdmin || superAdmin.status !== 'ACTIVE') {
+      throw new Error('Super admin not found or inactive');
+    }
+
+    const payload = {
+      id: superAdmin.id,
+      email: superAdmin.email,
+      role: superAdmin.role,
+      companyId: superAdmin.companyId,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    return {
+      user: {
+        id: superAdmin.id,
+        email: superAdmin.email,
+        role: superAdmin.role,
+        companyId: superAdmin.companyId,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
 }
 
 module.exports = new AuthService();

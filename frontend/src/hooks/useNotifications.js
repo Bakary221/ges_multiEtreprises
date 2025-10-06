@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState([]);
 
-  const addNotification = useCallback((message, type = 'info', duration = 5000) => {
+  const addNotification = useCallback((message, type = 'info', duration = 5000, playSound = true) => {
     const id = Date.now() + Math.random();
     const notification = {
       id,
@@ -15,7 +15,7 @@ export const useNotifications = () => {
     setNotifications(prev => [...prev, notification]);
 
     // Play sound/speech for notifications
-    if (type === 'success') {
+    if (playSound && type === 'success') {
       try {
         // Use Speech Synthesis API for vocal feedback
         if ('speechSynthesis' in window) {
@@ -43,7 +43,7 @@ export const useNotifications = () => {
         // Fallback to simple beep sound
         playBeepSound();
       }
-    } else if (type === 'error') {
+    } else if (playSound && type === 'error') {
       try {
         // Use Speech Synthesis API for error feedback
         if ('speechSynthesis' in window) {

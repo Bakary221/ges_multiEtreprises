@@ -20,6 +20,8 @@ model User {
   logs          Log[]
   notifications Notification[]
   company       Company?       @relation(fields: [companyId], references: [id])
+  grantedLoans  Loan[]         @relation("LoanGrantedBy")
+  approvedLoans Loan[]         @relation("LoanApprovedBy")
 
   @@index([companyId], map: "users_companyId_fkey")
   @@map("users")
@@ -69,6 +71,7 @@ model Employee {
   leaveRequests LeaveRequest[]
   payslips      Payslip[]
   timesheets    Timesheet[]
+  loans         Loan[]
 
   @@index([companyId], map: "employees_companyId_fkey")
   @@index([departmentId], map: "employees_departmentId_fkey")
@@ -127,12 +130,14 @@ model Timesheet {
 }
 
 model Payrun {
-  id          Int       @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   companyId   Int
   month       String
   totalAmount Float
-  createdAt   DateTime  @default(now())
-  company     Company   @relation(fields: [companyId], references: [id])
+  status      PayrunStatus  @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  company     Company       @relation(fields: [companyId], references: [id])
   payslips    Payslip[]
 
   @@index([companyId], map: "payruns_companyId_fkey")
@@ -259,4 +264,55 @@ enum NotificationStatus {
 enum ContractType {
   FIXE
   HONORAIRE
+}
+
+enum PayrunStatus {
+  DRAFT
+  CALCULATED
+  VALIDATED
+  PAID
+  CLOSED
+}
+
+model Loan {
+  id            Int           @id @default(autoincrement())
+  employeeId    Int
+  amount        Float
+  interestRate  Float         @default(0)
+  termMonths    Int
+  monthlyPayment Float
+  remainingAmount Float
+  status        LoanStatus    @default(ACTIVE)
+  purpose       String?
+  grantedBy     Int           // User ID du caissier qui a accordé le prêt
+  approvedBy    Int?          // User ID de l'admin qui a approuvé (optionnel)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+  grantedByUser User          @relation("LoanGrantedBy", fields: [grantedBy], references: [id])
+  approvedByUser User?        @relation("LoanApprovedBy", fields: [approvedBy], references: [id])
+  payments      LoanPayment[]
+
+  @@index([employeeId], map: "loans_employeeId_fkey")
+  @@index([grantedBy], map: "loans_grantedBy_fkey")
+  @@index([approvedBy], map: "loans_approvedBy_fkey")
+  @@map("loans")
+}
+
+model LoanPayment {
+  id        Int           @id @default(autoincrement())
+  loanId    Int
+  amount    Float
+  paidAt    DateTime      @default(now())
+  loan      Loan          @relation(fields: [loanId], references: [id])
+
+  @@index([loanId], map: "loan_payments_loanId_fkey")
+  @@map("loan_payments")
+}
+
+enum LoanStatus {
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+  CANCELLED
 }

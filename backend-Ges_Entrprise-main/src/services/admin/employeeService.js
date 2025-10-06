@@ -2,6 +2,7 @@ const prisma = require('../../config/prisma');
 const badgeService = require('./badgeService');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 class EmployeeService {
   constructor() {
@@ -9,8 +10,8 @@ class EmployeeService {
     console.log('📁 EMPLOYEE_SERVICE: uploadsDir set to:', this.uploadsDir);
   }
 
-  // Check if badge exists for employee
-  checkBadgeExists(employeeId, matricule = null) {
+  // Check if badge exists for employee and update database if necessary
+  async checkBadgeExists(employeeId, matricule = null) {
     try {
       // Try to find any PDF file with this employee ID
       const files = fs.readdirSync(this.uploadsDir);
@@ -27,6 +28,21 @@ class EmployeeService {
         if (badgeFile) {
           return `/uploads/badges/${badgeFile}`;
         }
+      }
+
+      // If no badge file found but employee has badgeGeneratedAt set, update database
+      const employee = await prisma.employee.findUnique({
+        where: { id: parseInt(employeeId) },
+        select: { id: true, badgeGeneratedAt: true }
+      });
+
+      if (employee && employee.badgeGeneratedAt) {
+        // Reset badgeGeneratedAt since file doesn't exist
+        await prisma.employee.update({
+          where: { id: parseInt(employeeId) },
+          data: { badgeGeneratedAt: null }
+        });
+        console.log(`Reset badgeGeneratedAt for employee ${employeeId} - file not found`);
       }
 
       return null;
@@ -64,45 +80,74 @@ class EmployeeService {
     // Generate unique matricule
     const matricule = await this.generateMatricule(companyId);
 
-    // Créer l'employé (sans compte utilisateur)
-    const employee = await prisma.employee.create({
-      data: {
-        matricule,
-        name,
-        position,
-        salary: parseFloat(salary),
-        email,
-        departmentId: departmentId ? parseInt(departmentId) : null,
-        companyId: parseInt(companyId),
-      },
-      include: {
-        department: true,
-        contract: true,
-        company: true,
-      },
-    });
+    // Utiliser une transaction pour créer l'utilisateur et l'employé ensemble
+    const employee = await prisma.$transaction(async (prisma) => {
+      // Vérifier si l'email existe déjà
+      const existingUser = await prisma.user.findUnique({
+        where: { email }
+      });
 
-    // Créer le contrat si fourni
-    if (contractType && startDate) {
-      await prisma.contract.create({
+      if (existingUser) {
+        throw new Error('Un utilisateur avec cet email existe déjà');
+      }
+
+      // Créer l'utilisateur avec un mot de passe par défaut
+      const defaultPassword = 'password123'; // TODO: Peut être changé pour un mot de passe généré
+      const hashedPassword = await bcrypt.hash(defaultPassword, 12);
+
+      const user = await prisma.user.create({
         data: {
-          type: contractType,
-          startDate: new Date(startDate),
-          endDate: endDate ? new Date(endDate) : null,
-          salary: parseFloat(salary),
-          employeeId: employee.id,
+          email,
+          password: hashedPassword,
+          role: 'EMPLOYEE',
+          companyId: parseInt(companyId),
         },
       });
-    }
 
-    // Generate employee badge automatically
-    try {
-      const badge = await badgeService.generateEmployeeBadge(employee.id);
-      console.log('Badge generated for employee:', employee.matricule, badge.badgeUrl);
-    } catch (badgeError) {
-      console.error('Failed to generate badge for employee:', employee.matricule, badgeError.message);
-      // Don't fail employee creation if badge generation fails
-    }
+      // Créer l'employé lié à l'utilisateur
+      const employee = await prisma.employee.create({
+        data: {
+          matricule,
+          name,
+          position,
+          salary: parseFloat(salary),
+          email,
+          departmentId: departmentId ? parseInt(departmentId) : null,
+          companyId: parseInt(companyId),
+          userId: user.id,
+        },
+        include: {
+          department: true,
+          contract: true,
+          company: true,
+          user: {
+            select: {
+              email: true,
+              role: true,
+              status: true,
+            },
+          },
+        },
+      });
+
+      // Créer le contrat si fourni
+      if (contractType && startDate) {
+        await prisma.contract.create({
+          data: {
+            type: contractType,
+            startDate: new Date(startDate),
+            endDate: endDate ? new Date(endDate) : null,
+            salary: parseFloat(salary),
+            employeeId: employee.id,
+          },
+        });
+      }
+
+      return employee;
+    });
+
+    // Note: Badge will be generated manually via the badge generation endpoint
+    // when needed, not automatically during employee creation
 
     return employee;
   }
@@ -162,10 +207,10 @@ class EmployeeService {
     });
 
     // Add badge information to each employee
-    const employeesWithBadges = employees.map(employee => ({
+    const employeesWithBadges = await Promise.all(employees.map(async employee => ({
       ...employee,
-      badgeUrl: this.checkBadgeExists(employee.id, employee.matricule)
-    }));
+      badgeUrl: await this.checkBadgeExists(employee.id, employee.matricule)
+    })));
 
     const total = await prisma.employee.count({ where });
     const totalPages = Math.ceil(total / parseInt(limit));

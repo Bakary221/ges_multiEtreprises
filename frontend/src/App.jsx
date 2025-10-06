@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './utils/AuthContext';
 import { CompanyProvider } from './utils/CompanyContext';
 import { useNotifications } from './hooks/useNotifications';
@@ -27,10 +27,12 @@ import Timesheets from './pages/Admin/Timesheets';
 import Departments from './pages/Admin/Departments';
 import Contracts from './pages/Admin/Contracts';
 import Leaves from './pages/Admin/Leaves';
+import Payroll from './pages/Admin/Payroll';
 
 // Caissier Pages
 import CaissierDashboard from './pages/Caissier/Dashboard';
 import Payments from './pages/Caissier/Payments';
+import Payruns from './pages/Caissier/Payruns';
 
 // Employee Pages
 import EmployeeDashboard from './pages/Employee/Dashboard';
@@ -38,6 +40,38 @@ import Profile from './pages/Employee/Profile';
 import Payslips from './pages/Employee/Payslips';
 import MyTimesheets from './pages/Employee/MyTimesheets';
 import MyLeaves from './pages/Employee/MyLeaves';
+
+// Impersonation Handler Component
+const ImpersonationHandler = ({ children }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const impersonate = urlParams.get('impersonate');
+    const accessToken = urlParams.get('accessToken');
+    const refreshToken = urlParams.get('refreshToken');
+    const userParam = urlParams.get('user');
+
+    if (impersonate === '1' && accessToken && refreshToken && userParam) {
+      try {
+        const user = JSON.parse(userParam);
+        // Store impersonation tokens
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(user));
+        // Remove query params and redirect to clean URL
+        navigate('/admin/dashboard', { replace: true });
+      } catch (error) {
+        console.error('Error parsing impersonation data:', error);
+        // Clear any invalid params
+        navigate('/admin/dashboard', { replace: true });
+      }
+    }
+  }, [location.search, navigate]);
+
+  return children;
+};
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -80,7 +114,6 @@ function App() {
 
     return (
       <>
-        <Router>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
@@ -225,6 +258,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/payroll"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminLayout>
+                  <Payroll />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Caissier Routes */}
           <Route
@@ -243,6 +286,16 @@ function App() {
               <ProtectedRoute allowedRoles={['CAISSIER']}>
                 <Layout>
                   <Payments />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/caissier/payruns"
+            element={
+              <ProtectedRoute allowedRoles={['CAISSIER']}>
+                <Layout>
+                  <Payruns />
                 </Layout>
               </ProtectedRoute>
             }
@@ -304,18 +357,21 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-        </Router>
         <NotificationContainer notifications={notifications} onRemove={removeNotification} />
       </>
     );
   };
 
   return (
-    <AuthProvider>
-      <CompanyProvider>
-        <AppContent />
-      </CompanyProvider>
-    </AuthProvider>
+    <Router>
+      <ImpersonationHandler>
+        <AuthProvider>
+          <CompanyProvider>
+            <AppContent />
+          </CompanyProvider>
+        </AuthProvider>
+      </ImpersonationHandler>
+    </Router>
   );
 }
 

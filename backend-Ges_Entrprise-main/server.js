@@ -33,8 +33,32 @@ const upload = multer({
   }
 });
 
-// Servir les fichiers statiques
-app.use('/uploads', express.static('uploads'));
+// Servir les fichiers statiques avec CORS pour les PDFs
+app.use('/uploads', (req, res, next) => {
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.sendStatus(200);
+    return;
+  }
+
+  // Handle actual requests
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  // Set content type for PDF files
+  if (req.path.endsWith('.pdf')) {
+    res.header('Content-Type', 'application/pdf');
+    res.header('Content-Disposition', 'inline');
+  }
+
+  next();
+}, express.static('uploads'));
 
 // Middleware de sécurité et logging
 // app.use(helmet()); // Temporairement désactivé pour debug

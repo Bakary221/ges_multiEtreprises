@@ -13,5 +13,6 @@ router.post('/refresh', authController.refreshToken);
 router.use(authenticate);
 router.post('/logout', authController.logout);
 router.post('/impersonate/:companyId', authorize('SUPERADMIN'), authController.impersonate);
+router.post('/revert-impersonate', authController.revertImpersonate);
 
 module.exports = router;

@@ -13,6 +13,8 @@ import {
   Legend,
 } from 'chart.js';
 import { CreditCard, Users, FileText, CheckCircle, Activity, TrendingUp, DollarSign, Receipt } from 'lucide-react';
+import api from '../../services/api';
+import { useCompanyTheme } from '../../hooks/useCompanyTheme';
 
 ChartJS.register(
   CategoryScale,
@@ -27,6 +29,7 @@ ChartJS.register(
 );
 
 const Dashboard = () => {
+  const theme = useCompanyTheme();
   const [stats, setStats] = useState({
     successfulPayments: 0,
     pendingPayments: 0,
@@ -36,16 +39,23 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading data
     const loadDashboardData = async () => {
-      // Mock data - in real app, fetch from API
-      setStats({
-        successfulPayments: 156,
-        pendingPayments: 23,
-        totalEmployees: 24,
-        receiptsGenerated: 89,
-      });
-      setLoading(false);
+      try {
+        // Fetch real data from API
+        const response = await api.get('/caissier/dashboard/stats');
+        setStats(response.data.data);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        // Fallback to mock data if API fails
+        setStats({
+          successfulPayments: 0,
+          pendingPayments: 0,
+          totalEmployees: 0,
+          receiptsGenerated: 0,
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     loadDashboardData();
@@ -118,28 +128,18 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-100 p-6">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center py-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full mb-6 shadow-lg">
-            <DollarSign className="h-10 w-10 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent mb-2">
-            Dashboard Caissier
-          </h1>
-          <p className="text-gray-600 text-lg">Gestion des paiements et transactions</p>
-        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="group relative overflow-hidden bg-green-600 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+          <div className="group relative overflow-hidden p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style={{ backgroundColor: theme.primary }}>
             <div className="absolute inset-0 bg-white bg-opacity-10 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-emerald-100 text-sm font-medium mb-1">Paiements Réussis</p>
+                <p className="text-white text-sm font-medium mb-1 opacity-90">Paiements Réussis</p>
                 <p className="text-3xl font-bold text-white">{stats.successfulPayments}</p>
                 <div className="mt-2 flex items-center">
-                  <div className="w-2 h-2 bg-emerald-200 rounded-full mr-2"></div>
-                  <span className="text-emerald-100 text-xs">Ce mois</span>
+                  <div className="w-2 h-2 bg-white rounded-full mr-2 opacity-70"></div>
+                  <span className="text-white text-xs opacity-80">Ce mois</span>
                 </div>
               </div>
               <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
@@ -148,15 +148,15 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="group relative overflow-hidden bg-yellow-600 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+          <div className="group relative overflow-hidden p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style={{ backgroundColor: theme.secondary }}>
             <div className="absolute inset-0 bg-white bg-opacity-10 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-amber-100 text-sm font-medium mb-1">En Attente</p>
+                <p className="text-white text-sm font-medium mb-1 opacity-90">En Attente</p>
                 <p className="text-3xl font-bold text-white">{stats.pendingPayments}</p>
                 <div className="mt-2 flex items-center">
-                  <div className="w-2 h-2 bg-amber-200 rounded-full mr-2"></div>
-                  <span className="text-amber-100 text-xs">À traiter</span>
+                  <div className="w-2 h-2 bg-white rounded-full mr-2 opacity-70"></div>
+                  <span className="text-white text-xs opacity-80">À traiter</span>
                 </div>
               </div>
               <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
@@ -165,15 +165,15 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+          <div className="group relative overflow-hidden p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` }}>
             <div className="absolute inset-0 bg-white bg-opacity-10 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium mb-1">Employés</p>
+                <p className="text-white text-sm font-medium mb-1 opacity-90">Employés</p>
                 <p className="text-3xl font-bold text-white">{stats.totalEmployees}</p>
                 <div className="mt-2 flex items-center">
-                  <div className="w-2 h-2 bg-blue-200 rounded-full mr-2"></div>
-                  <span className="text-blue-100 text-xs">Actifs</span>
+                  <div className="w-2 h-2 bg-white rounded-full mr-2 opacity-70"></div>
+                  <span className="text-white text-xs opacity-80">Actifs</span>
                 </div>
               </div>
               <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
@@ -182,15 +182,15 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="group relative overflow-hidden bg-purple-600 p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+          <div className="group relative overflow-hidden p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2" style={{ backgroundColor: theme.primary, opacity: 0.9 }}>
             <div className="absolute inset-0 bg-white bg-opacity-10 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium mb-1">Reçus Générés</p>
+                <p className="text-white text-sm font-medium mb-1 opacity-90">Reçus Générés</p>
                 <p className="text-3xl font-bold text-white">{stats.receiptsGenerated}</p>
                 <div className="mt-2 flex items-center">
-                  <div className="w-2 h-2 bg-purple-200 rounded-full mr-2"></div>
-                  <span className="text-purple-100 text-xs">Ce mois</span>
+                  <div className="w-2 h-2 bg-white rounded-full mr-2 opacity-70"></div>
+                  <span className="text-white text-xs opacity-80">Ce mois</span>
                 </div>
               </div>
               <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
@@ -203,9 +203,9 @@ const Dashboard = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Payment Trends */}
-          <div className="group bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white border-opacity-20">
+          <div className="group bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white border-opacity-20">
             <div className="flex items-center mb-6">
-              <div className="p-3 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl mr-4">
+              <div className="p-3 rounded-xl mr-4" style={{ backgroundColor: theme.primary }}>
                 <TrendingUp className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900">Évolution des Paiements</h3>
@@ -216,9 +216,9 @@ const Dashboard = () => {
           </div>
 
           {/* Payment Methods */}
-          <div className="group bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white border-opacity-20">
+          <div className="group bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white border-opacity-20">
             <div className="flex items-center mb-6">
-              <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl mr-4">
+              <div className="p-3 rounded-xl mr-4" style={{ backgroundColor: theme.secondary }}>
                 <CreditCard className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900">Méthodes de Paiement</h3>
@@ -229,9 +229,9 @@ const Dashboard = () => {
           </div>
 
           {/* Monthly Payments */}
-          <div className="group bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white border-opacity-20 lg:col-span-2">
+          <div className="group bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-white border-opacity-20 lg:col-span-2">
             <div className="flex items-center mb-6">
-              <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl mr-4">
+              <div className="p-3 rounded-xl mr-4" style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` }}>
                 <DollarSign className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900">Paiements Mensuels</h3>
@@ -243,31 +243,37 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white border-opacity-20">
+        <div className="bg-white/90 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white border-opacity-20">
           <div className="flex items-center mb-6">
-            <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl mr-4">
+            <div className="p-3 rounded-xl mr-4" style={{ backgroundColor: theme.primary }}>
               <Activity className="h-6 w-6 text-white" />
             </div>
             <h3 className="text-xl font-bold text-gray-900">Actions Rapides</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <button className="group p-6 bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl hover:shadow-lg transition-all duration-300 text-left transform hover:-translate-y-1">
-              <CreditCard className="h-8 w-8 text-emerald-600 mb-3 group-hover:scale-110 transition-transform duration-300" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <button className="group p-6 rounded-xl hover:shadow-lg transition-all duration-300 text-left transform hover:-translate-y-1" style={{ backgroundColor: `${theme.primary}10`, border: `1px solid ${theme.primary}20` }}>
+              <CreditCard className="h-8 w-8 mb-3 group-hover:scale-110 transition-transform duration-300" style={{ color: theme.primary }} />
               <h4 className="font-bold text-gray-900 mb-2">Traiter les Paiements</h4>
               <p className="text-sm text-gray-600">Valider et effectuer les transactions</p>
             </button>
 
-            <button className="group p-6 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl hover:shadow-lg transition-all duration-300 text-left transform hover:-translate-y-1">
-              <Users className="h-8 w-8 text-blue-600 mb-3 group-hover:scale-110 transition-transform duration-300" />
+            <button className="group p-6 rounded-xl hover:shadow-lg transition-all duration-300 text-left transform hover:-translate-y-1" style={{ backgroundColor: `${theme.secondary}10`, border: `1px solid ${theme.secondary}20` }}>
+              <Users className="h-8 w-8 mb-3 group-hover:scale-110 transition-transform duration-300" style={{ color: theme.secondary }} />
               <h4 className="font-bold text-gray-900 mb-2">Consulter Employés</h4>
               <p className="text-sm text-gray-600">Voir les informations des employés</p>
             </button>
 
-            <button className="group p-6 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl hover:shadow-lg transition-all duration-300 text-left transform hover:-translate-y-1">
-              <Receipt className="h-8 w-8 text-purple-600 mb-3 group-hover:scale-110 transition-transform duration-300" />
+            <button className="group p-6 rounded-xl hover:shadow-lg transition-all duration-300 text-left transform hover:-translate-y-1" style={{ backgroundColor: `${theme.primary}10`, border: `1px solid ${theme.primary}20` }}>
+              <Receipt className="h-8 w-8 mb-3 group-hover:scale-110 transition-transform duration-300" style={{ color: theme.primary }} />
               <h4 className="font-bold text-gray-900 mb-2">Générer Reçus</h4>
               <p className="text-sm text-gray-600">Imprimer et envoyer les reçus</p>
             </button>
+
+            <a href="/caissier/payruns" className="group p-6 rounded-xl hover:shadow-lg transition-all duration-300 text-left transform hover:-translate-y-1 block" style={{ backgroundColor: `${theme.secondary}10`, border: `1px solid ${theme.secondary}20` }}>
+              <FileText className="h-8 w-8 mb-3 group-hover:scale-110 transition-transform duration-300" style={{ color: theme.secondary }} />
+              <h4 className="font-bold text-gray-900 mb-2">Gérer Payruns</h4>
+              <p className="text-sm text-gray-600">Valider et clôturer les périodes de paie</p>
+            </a>
           </div>
         </div>
       </div>

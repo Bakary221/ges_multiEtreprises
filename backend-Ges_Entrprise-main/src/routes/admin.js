@@ -26,6 +26,8 @@ router.patch('/timesheets/:id/validate', authorize(['ADMIN', 'SUPERADMIN']), adm
 
 // Routes Paie
 router.post('/payruns', authorize(['ADMIN', 'SUPERADMIN']), adminController.generatePayrun);
+router.get('/payruns', authorize(['ADMIN', 'SUPERADMIN']), adminController.getPayruns);
+router.patch('/payruns/:id/status', authorize(['ADMIN', 'SUPERADMIN']), adminController.updatePayrunStatus);
 router.get('/payslips', authorize(['ADMIN', 'SUPERADMIN']), adminController.getPayslips);
 router.get('/payslips/:id', authorize(['ADMIN', 'SUPERADMIN']), adminController.getPayslipById);
 router.get('/payslips/:id/pdf', authorize(['ADMIN', 'SUPERADMIN']), adminController.generatePayslipPDF);

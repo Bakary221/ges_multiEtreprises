@@ -191,18 +191,6 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-blue-600 text-sm">
-              Nouveau système ?{' '}
-              <Link
-                to="/register-superadmin"
-                className="text-blue-600 hover:text-blue-800 font-medium underline underline-offset-2"
-              >
-                Créer un compte SuperAdmin
-              </Link>
-            </p>
-          </div>
         </div>
 
         {/* Bottom Text */}

@@ -123,7 +123,7 @@ const Badges = () => {
           setShowBadgeModal(true);
         }
 
-        addNotification('Badge généré avec succès !', 'success');
+        addNotification('Badge généré avec succès !', 'success', 5000, false);
       }
     } catch (error) {
       addNotification('Erreur lors de la génération du badge: ' + error.message, 'error');
@@ -191,7 +191,7 @@ const Badges = () => {
 
     } catch (error) {
       console.error('🖨️ FRONTEND: Error printing badge:', error);
-      addNotification('Erreur lors de l\'impression du badge: ' + error.message, 'error');
+      addNotification('Erreur lors de l\'impression du badge: ' + error.message, 'error', 5000, false);
     }
   };
 

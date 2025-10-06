@@ -55,4 +55,10 @@ router.post('/files/upload', upload.single('file'), superAdminController.uploadF
 // Routes pour les statistiques du dashboard
 router.get('/dashboard/stats', superAdminController.getDashboardStats);
 
+// Routes pour consulter les données de paie et paiements (SuperAdmin seulement)
+router.get('/payslips', superAdminController.getAllPayslips);
+router.get('/payments', superAdminController.getAllPayments);
+router.get('/loans', superAdminController.getAllLoans);
+router.get('/payroll-summary', superAdminController.getPayrollSummary);
+
 module.exports = router;

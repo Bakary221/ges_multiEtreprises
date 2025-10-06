@@ -563,9 +563,15 @@ const Companies = () => {
 
   const handleImpersonate = async (companyId) => {
     try {
-      await companyService.impersonateCompany(companyId);
-      // Redirect to admin dashboard or refresh page
-      window.location.href = '/admin/dashboard';
+      const { accessToken, refreshToken, user } = await companyService.impersonateCompany(companyId);
+      // Open new tab with impersonation tokens
+      const params = new URLSearchParams({
+        impersonate: '1',
+        accessToken,
+        refreshToken,
+        user: JSON.stringify(user)
+      });
+      window.open(`/admin/dashboard?${params.toString()}`, '_blank');
     } catch (error) {
       console.error('Error impersonating company:', error);
     }
@@ -704,7 +710,7 @@ const Companies = () => {
                     </div>
                     <div className="ml-4">
                       <h3 className="text-xl font-bold text-gray-900 group-hover:text-gray-700 transition-colors">{company.name}</h3>
-                      <p className="text-sm text-gray-500 font-medium">{company.currency}</p>
+                      <p className="text-sm text-gray-500 font-medium">{company.currency} - ID: {company.id}</p>
                     </div>
                   </div>
                 </div>
@@ -727,13 +733,20 @@ const Companies = () => {
                 </div>
 
                 <div className="flex space-x-3">
-                  <button
-                    onClick={() => handleImpersonate(company.id)}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-3 border border-blue-300 text-sm font-semibold rounded-xl text-blue-700 bg-white hover:bg-blue-50 shadow-md hover:shadow-lg transition-all duration-300"
-                  >
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Se connecter
-                  </button>
+                  {user?.impersonatedBy ? (
+                    <div className="flex-1 inline-flex items-center justify-center px-4 py-3 border border-gray-300 text-sm font-semibold rounded-xl text-gray-500 bg-gray-50 cursor-not-allowed">
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Mode impersonation
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleImpersonate(company.id)}
+                      className="flex-1 inline-flex items-center justify-center px-4 py-3 border border-blue-300 text-sm font-semibold rounded-xl text-blue-700 bg-white hover:bg-blue-50 shadow-md hover:shadow-lg transition-all duration-300"
+                    >
+                      <LogIn className="h-4 w-4 mr-2" />
+                      Se connecter
+                    </button>
+                  )}
                   <button
                     onClick={() => openEditModal(company)}
                     className="p-3 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-300"

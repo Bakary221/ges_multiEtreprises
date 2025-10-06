@@ -1,9 +1,16 @@
 import api from './api';
 
+// Helper to get base path based on user role
+const getBasePath = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user.role === 'CAISSIER' ? '/caissier' : '';
+};
+
 export const employeeService = {
-  // Get all employees for admin
+  // Get all employees for admin/caissier
   getAllEmployees: async () => {
-    const response = await api.get('/employees');
+    const basePath = getBasePath();
+    const response = await api.get(`${basePath}/employees`);
     return response.data;
   },
 

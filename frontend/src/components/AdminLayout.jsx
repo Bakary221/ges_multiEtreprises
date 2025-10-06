@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../utils/AuthContext';
 import { useCompany } from '../utils/CompanyContext';
 import { useNotifications } from '../hooks/useNotifications';
+import { companyService } from '../services/companyService';
 import NotificationContainer from './NotificationContainer';
 import {
   Users,
@@ -17,7 +18,8 @@ import {
   Bell,
   Settings,
   Badge,
-  Camera
+  Camera,
+  ArrowLeft
 } from 'lucide-react';
 
 const AdminLayout = ({ children }) => {
@@ -55,6 +57,22 @@ const AdminLayout = ({ children }) => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleRevertImpersonate = async () => {
+    try {
+      const { accessToken, refreshToken, user } = await companyService.revertImpersonate();
+      // Open new tab with super admin tokens
+      const params = new URLSearchParams({
+        impersonate: '1',
+        accessToken,
+        refreshToken,
+        user: JSON.stringify(user)
+      });
+      window.open(`/superadmin/dashboard?${params.toString()}`, '_blank');
+    } catch (error) {
+      console.error('Error reverting impersonation:', error);
+    }
   };
 
   const navigation = [
@@ -253,6 +271,22 @@ const AdminLayout = ({ children }) => {
             </div>
 
             <div className="ml-4 flex items-center space-x-4">
+              {/* Revert Impersonation Button */}
+              {user?.impersonatedBy && (
+                <button
+                  onClick={handleRevertImpersonate}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                  style={{
+                    backgroundColor: '#DC2626', // Red color to make it visible
+                    borderColor: '#B91C1C'
+                  }}
+                  title="Retour au Super Admin"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Super Admin
+                </button>
+              )}
+
               {/* Notifications */}
               <button className="p-2 text-gray-400 hover:text-gray-600 relative">
                 <Bell className="h-5 w-5" />

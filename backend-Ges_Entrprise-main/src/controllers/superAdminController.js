@@ -1,4 +1,7 @@
 const superAdminService = require('../services/superAdminService');
+const payrollService = require('../services/admin/payrollService');
+const paymentService = require('../services/caissier/paymentService');
+const loanService = require('../services/caissier/loanService');
 const Joi = require('joi');
 
 const companySchema = Joi.object({
@@ -242,6 +245,80 @@ class SuperAdminController {
     } catch (error) {
       res.status(500).json({
         errorCode: 'GET_DASHBOARD_STATS_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  // Payroll and Payment management for SuperAdmin
+  async getAllPayslips(req, res) {
+    try {
+      const filters = req.query;
+      // For SuperAdmin, we need to get payslips from all companies
+      // This requires modifying the service to handle company filtering differently
+      const result = await payrollService.getPayslips(null, filters);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        errorCode: 'GET_PAYSLIPS_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  async getAllPayments(req, res) {
+    try {
+      const filters = req.query;
+      // For SuperAdmin, we need to get payments from all companies
+      const result = await paymentService.getPayments(null, filters);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        errorCode: 'GET_PAYMENTS_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  async getAllLoans(req, res) {
+    try {
+      const filters = req.query;
+      // For SuperAdmin, we need to get loans from all companies
+      const result = await loanService.getLoans(null, filters);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      res.status(500).json({
+        errorCode: 'GET_LOANS_FAILED',
+        message: error.message,
+      });
+    }
+  }
+
+  async getPayrollSummary(req, res) {
+    try {
+      const filters = req.query;
+      // Get summary for all companies or specific company
+      const summary = await payrollService.getPayrollSummary(null, filters);
+
+      res.json({
+        success: true,
+        data: summary,
+      });
+    } catch (error) {
+      res.status(500).json({
+        errorCode: 'GET_PAYROLL_SUMMARY_FAILED',
         message: error.message,
       });
     }

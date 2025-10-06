@@ -28,11 +28,7 @@ export const companyService = {
 
   impersonateCompany: async (companyId) => {
     const response = await api.post(`/auth/impersonate/${companyId}`);
-    const { accessToken, refreshToken, user } = response.data;
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-    localStorage.setItem('user', JSON.stringify(user));
-    return user;
+    return response.data.data; // Return { accessToken, refreshToken, user }
   },
 
   getDashboardStats: async () => {
@@ -43,5 +39,10 @@ export const companyService = {
   createCompanyWithAdmin: async (companyData) => {
     const response = await api.post('/companies/with-admin', companyData);
     return response.data;
+  },
+
+  revertImpersonate: async () => {
+    const response = await api.post('/auth/revert-impersonate');
+    return response.data.data; // Return { accessToken, refreshToken, user }
   },
 };
